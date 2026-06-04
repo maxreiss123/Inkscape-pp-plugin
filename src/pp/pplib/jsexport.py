@@ -1,0 +1,82 @@
+"""Build a self-contained, browser-playable SVG from a presentation.
+
+Each slide layer is tagged with ``data-pp-slide`` / ``data-pp-bbox``, the player
+JS/CSS is inlined, and authoring chrome (master layers, namedview) is stripped.
+The result opens directly in any modern browser.
+"""
+
+import copy
+import json
+import os
+
+import lxml.etree as ET
+
+from . import constants as C
+from . import svgutil as S
+
+_ASSETS = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
+SVG = "http://www.w3.org/2000/svg"
+
+
+def embed_asset(name):
+    with open(os.path.join(_ASSETS, name), encoding="utf-8") as fh:
+        return fh.read()
+
+
+def build(pres, transition="fade", loop=False, start=0):
+    """Return a deep-copied lxml tree ready to write as a standalone SVG."""
+    from .model import Presentation
+
+    root = copy.deepcopy(pres.svg)
+    work = Presentation(root)
+    slides = work.slides()
+
+    first_bbox = None
+    for slide in slides:
+        layer = slide.layer
+        bbox = slide.bbox
+        if first_bbox is None:
+            first_bbox = bbox
+        layer.set("data-pp-slide", str(slide.index))
+        layer.set("data-pp-bbox", "%s %s %s %s" % bbox)
+        # Make sure the authoring "hidden layer" display state does not hide it.
+        if "display" in layer.style:
+            layer.style["display"] = "inline"
+
+    # Remove master layers and namedview (authoring-only).
+    for el in list(root):
+        if S.get_pp(el, C.A_ROLE) == C.Role.MASTER:
+            root.remove(el)
+    nv = root.find("{%s}namedview" % C.SODIPODI_NS)
+    if nv is not None:
+        root.remove(nv)
+
+    # Fill the viewport.
+    root.set("width", "100%")
+    root.set("height", "100%")
+    root.set("preserveAspectRatio", "xMidYMid meet")
+    if first_bbox is not None:
+        root.set("viewBox", "%s %s %s %s" % first_bbox)
+
+    # Inject CSS + config + player JS.
+    style = ET.SubElement(root, "{%s}style" % SVG)
+    style.set("type", "text/css")
+    style.text = ET.CDATA("\n" + embed_asset("player.css") + "\n")
+
+    config = {"count": len(slides), "transition": transition,
+              "loop": bool(loop), "start": int(start)}
+    cfg_script = ET.SubElement(root, "{%s}script" % SVG)
+    cfg_script.set("type", "application/ecmascript")
+    cfg_script.text = ET.CDATA("\nwindow.PP_CONFIG = %s;\n" % json.dumps(config))
+
+    player = ET.SubElement(root, "{%s}script" % SVG)
+    player.set("type", "application/ecmascript")
+    player.text = ET.CDATA("\n" + embed_asset("player.js") + "\n")
+
+    return root.getroottree()
+
+
+def write(pres, path, **kw):
+    tree = build(pres, **kw)
+    tree.write(path, xml_declaration=True, encoding="UTF-8")
+    return path

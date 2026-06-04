@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Export Interactive SVG</name>
+  <id>org.inkscape.pp.export_js</id>
+  <param name="out_path" type="path" mode="file_new" filetypes="svg" gui-text="Output file (.svg)"></param>
+  <param name="transition" type="optiongroup" appearance="combo" gui-text="Transition">
+    <option value="none">None</option>
+    <option value="fade">Fade</option>
+    <option value="slide-anim">Slide</option>
+  </param>
+  <param name="loop" type="bool" gui-text="Loop at end">false</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_export_js.py</command>
+  </script>
+</inkscape-extension>

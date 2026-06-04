@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Setup Presentation</name>
+  <id>org.inkscape.pp.setup</id>
+  <param name="aspect" type="optiongroup" appearance="combo" gui-text="Slide size">
+    <option value="16:9">Widescreen (16:9)</option>
+    <option value="4:3">Standard (4:3)</option>
+    <option value="custom">Custom</option>
+  </param>
+  <param name="width" type="float" min="1" max="100000" gui-text="Custom width (px)">1920</param>
+  <param name="height" type="float" min="1" max="100000" gui-text="Custom height (px)">1080</param>
+  <param name="first_layout" type="optiongroup" appearance="combo" gui-text="First slide layout">
+    <option value="title">Title Slide</option>
+    <option value="title_content">Title and Content</option>
+    <option value="blank">Blank</option>
+  </param>
+  <param name="footer_text" type="string" gui-text="Footer text"></param>
+  <param name="date_mode" type="optiongroup" appearance="combo" gui-text="Date field">
+    <option value="none">None</option>
+    <option value="today">Today (auto)</option>
+    <option value="fixed">Fixed</option>
+  </param>
+  <param name="author" type="string" gui-text="Author"></param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_setup.py</command>
+  </script>
+</inkscape-extension>

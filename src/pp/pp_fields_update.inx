@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Update Numbers / Footer</name>
+  <id>org.inkscape.pp.fields_update</id>
+  <param name="footer_text" type="string" gui-text="Footer text (blank = keep)"></param>
+  <param name="date_mode" type="optiongroup" appearance="combo" gui-text="Date field">
+    <option value="">(keep current)</option>
+    <option value="none">None</option>
+    <option value="today">Today (auto)</option>
+    <option value="fixed">Fixed</option>
+  </param>
+  <param name="date_value" type="string" gui-text="Fixed date value"></param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_fields_update.py</command>
+  </script>
+</inkscape-extension>

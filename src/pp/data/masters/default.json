@@ -1,0 +1,17 @@
+{
+  "id": "master-default",
+  "label": "Default",
+  "bg_color": "#ffffff",
+  "accent_color": "#2a6fb0",
+  "title_font_size": 48,
+  "body_font_size": 28,
+  "font_family": "sans-serif",
+  "logo_href": null,
+  "logo_rect": [0.86, 0.04, 0.10, 0.08],
+  "show_footer": true,
+  "show_number": true,
+  "show_date": false,
+  "footer_rect": [0.06, 0.93, 0.60, 0.05],
+  "number_rect": [0.90, 0.93, 0.06, 0.05],
+  "date_rect": [0.70, 0.93, 0.18, 0.05]
+}

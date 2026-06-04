@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Export to PDF</name>
+  <id>org.inkscape.pp.export_pdf</id>
+  <param name="out_path" type="path" mode="file_new" filetypes="pdf" gui-text="Output file (.pdf)"></param>
+  <param name="info" type="description">Each slide is exported as one PDF page. If this fails, use File &gt; Export and choose all pages as PDF.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_export_pdf.py</command>
+  </script>
+</inkscape-extension>

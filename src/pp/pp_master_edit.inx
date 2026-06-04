@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Edit Master</name>
+  <id>org.inkscape.pp.master_edit</id>
+  <param name="bg_color" type="color" gui-text="Background color">4294967295</param>
+  <param name="accent_color" type="color" gui-text="Accent color">708747263</param>
+  <param name="title_font_size" type="int" min="8" max="200" gui-text="Title font size">48</param>
+  <param name="body_font_size" type="int" min="8" max="200" gui-text="Body font size">28</param>
+  <param name="font_family" type="string" gui-text="Font family">sans-serif</param>
+  <param name="logo_path" type="path" mode="file" gui-text="Logo image (optional)"></param>
+  <param name="show_footer" type="bool" gui-text="Show footer">true</param>
+  <param name="show_number" type="bool" gui-text="Show slide number">true</param>
+  <param name="show_date" type="bool" gui-text="Show date">false</param>
+  <param name="apply_now" type="bool" gui-text="Apply to all slides now">true</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_master_edit.py</command>
+  </script>
+</inkscape-extension>

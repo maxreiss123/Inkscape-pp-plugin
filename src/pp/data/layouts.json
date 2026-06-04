@@ -1,0 +1,28 @@
+{
+  "title": {
+    "label": "Title Slide",
+    "placeholders": [
+      {"id": "title", "role": "title", "rect": [0.10, 0.36, 0.80, 0.18], "align": "center", "font": 64, "prompt": "Click to add title"},
+      {"id": "subtitle", "role": "subtitle", "rect": [0.15, 0.58, 0.70, 0.12], "align": "center", "font": 32, "prompt": "Click to add subtitle"}
+    ]
+  },
+  "title_content": {
+    "label": "Title and Content",
+    "placeholders": [
+      {"id": "title", "role": "title", "rect": [0.06, 0.06, 0.88, 0.15], "align": "start", "font": 48, "prompt": "Click to add title"},
+      {"id": "body", "role": "body", "rect": [0.06, 0.24, 0.88, 0.66], "align": "start", "font": 28, "bullets": true, "prompt": "Click to add text"}
+    ]
+  },
+  "two_content": {
+    "label": "Two Content",
+    "placeholders": [
+      {"id": "title", "role": "title", "rect": [0.06, 0.06, 0.88, 0.15], "align": "start", "font": 48, "prompt": "Click to add title"},
+      {"id": "content-left", "role": "body", "rect": [0.06, 0.24, 0.42, 0.66], "align": "start", "font": 26, "bullets": true, "prompt": "Click to add text"},
+      {"id": "content-right", "role": "body", "rect": [0.52, 0.24, 0.42, 0.66], "align": "start", "font": 26, "bullets": true, "prompt": "Click to add text"}
+    ]
+  },
+  "blank": {
+    "label": "Blank",
+    "placeholders": []
+  }
+}

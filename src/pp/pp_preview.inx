@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Preview in Browser</name>
+  <id>org.inkscape.pp.preview</id>
+  <param name="transition" type="optiongroup" appearance="combo" gui-text="Transition">
+    <option value="none">None</option>
+    <option value="fade">Fade</option>
+    <option value="slide-anim">Slide</option>
+  </param>
+  <param name="start_index" type="int" min="1" max="1000" gui-text="Start at slide">1</param>
+  <param name="loop" type="bool" gui-text="Loop at end">false</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_preview.py</command>
+  </script>
+</inkscape-extension>

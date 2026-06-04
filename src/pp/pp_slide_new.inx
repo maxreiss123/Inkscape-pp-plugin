@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>New Slide</name>
+  <id>org.inkscape.pp.slide_new</id>
+  <param name="layout" type="optiongroup" appearance="combo" gui-text="Layout">
+    <option value="title">Title Slide</option>
+    <option value="title_content">Title and Content</option>
+    <option value="two_content">Two Content</option>
+    <option value="blank">Blank</option>
+  </param>
+  <param name="position" type="optiongroup" appearance="combo" gui-text="Insert">
+    <option value="end">At end</option>
+    <option value="after">After current slide</option>
+  </param>
+  <param name="apply_master" type="bool" gui-text="Apply master template">true</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_slide_new.py</command>
+  </script>
+</inkscape-extension>

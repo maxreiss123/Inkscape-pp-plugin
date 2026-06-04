@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Position Helpers</name>
+  <id>org.inkscape.pp.align</id>
+  <param name="op" type="optiongroup" appearance="combo" gui-text="Action">
+    <option value="left">Align left</option>
+    <option value="center_h">Center horizontally</option>
+    <option value="right">Align right</option>
+    <option value="top">Align top</option>
+    <option value="middle">Center vertically</option>
+    <option value="bottom">Align bottom</option>
+    <option value="distribute_h">Distribute horizontally</option>
+    <option value="distribute_v">Distribute vertically</option>
+    <option value="add_guides">Add layout guides to page</option>
+  </param>
+  <param name="relative_to" type="optiongroup" appearance="combo" gui-text="Relative to">
+    <option value="page">Page</option>
+    <option value="margins">Page margins</option>
+    <option value="selection">Selection</option>
+  </param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_align.py</command>
+  </script>
+</inkscape-extension>
