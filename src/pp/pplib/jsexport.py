@@ -118,9 +118,11 @@ def _inject_content_renderers(root, work):
         _external_script(root, C.CDN["marked"])
     if C.ContentKind.CODE in kinds:
         _external_script(root, C.CDN["hljs"])
-        link = ET.SubElement(root, "{%s}style" % SVG)
-        link.set("type", "text/css")
-        link.text = ET.CDATA("@import url('%s');" % C.CDN["hljs_css"])
+        # An xml-stylesheet PI applies the theme document-wide, including inside
+        # foreignObject XHTML -- more reliable than @import in an SVG <style>.
+        pi = ET.ProcessingInstruction(
+            "xml-stylesheet", 'type="text/css" href="%s"' % C.CDN["hljs_css"])
+        root.addprevious(pi)
     if kinds & {C.ContentKind.MERMAID, C.ContentKind.MARKDOWN, C.ContentKind.CODE}:
         init = ET.SubElement(root, "{%s}script" % SVG)
         init.set("type", "application/ecmascript")

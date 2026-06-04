@@ -36,9 +36,12 @@ def add_content_region(slide, local_rect, kind, src, lang=None, label=None):
     S.set_pp(group, C.A_PH_ROLE, C.PhRole.CONTENT)
     S.set_pp(group, C.A_PH_ID, S.new_id(slide.layer, "content"))
     S.set_pp(group, C.A_CONTENT_KIND, kind)
-    S.set_pp(group, C.A_CONTENT_SRC, src or "")
     if lang:
         S.set_pp(group, C.A_CONTENT_LANG, lang)
+    # Store the source as a child element's TEXT (not an attribute): XML
+    # normalises newlines in attribute values to spaces on save/reload, which
+    # would collapse multi-line code and Markdown to a single line.
+    set_region_source(group, src or "")
 
     rect = Rectangle(x=str(x), y=str(y), width=str(w), height=str(h))
     rect.style = {
@@ -103,7 +106,24 @@ def region_kind(group):
     return C.ContentKind.WEB
 
 
+def _source_el(group):
+    return group.find(C.cn("source"))
+
+
+def set_region_source(group, src):
+    """Store the region source as the text of a ``pp:source`` child element."""
+    el = _source_el(group)
+    if el is None:
+        import lxml.etree as ET
+        el = ET.SubElement(group, C.cn("source"))
+    el.text = src or ""
+
+
 def region_source(group):
+    el = _source_el(group)
+    if el is not None and el.text is not None:
+        return el.text
+    # Back-compat: older regions stored the source in an attribute.
     src = S.get_pp(group, C.A_CONTENT_SRC)
     if src is not None:
         return src

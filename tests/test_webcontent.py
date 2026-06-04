@@ -90,3 +90,25 @@ def test_no_cdn_when_no_rich_content(presentation):
     data = ET.tostring(jsexport.build(presentation)).decode()
     assert C.CDN["mermaid"] not in data
     assert C.CDN["marked"] not in data
+
+
+def test_multiline_source_survives_roundtrip(presentation):
+    """Multi-line code/markdown must survive a save/reload (newlines kept).
+
+    Regression test: storing the source in an XML attribute collapsed newlines
+    to spaces on reparse; it is now kept as element text.
+    """
+    import inkex
+    from pplib.model import Presentation
+
+    slide = presentation.slides()[0]
+    code = "def f():\n    x = 1\n    return x\n"
+    webcontent.add_content_region(slide, (10, 10, 800, 400),
+                                  C.ContentKind.CODE, code, lang="python")
+
+    # Serialise the whole document and parse it back, as Inkscape would.
+    data = ET.tostring(presentation.svg.getroottree())
+    reloaded = Presentation(inkex.load_svg(data).getroot())
+    region = next(iter(webcontent.iter_regions(reloaded.slides()[0].layer)))[0]
+    assert webcontent.region_source(region) == code
+    assert webcontent.region_source(region).count("\n") == 3
