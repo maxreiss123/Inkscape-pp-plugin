@@ -60,6 +60,8 @@ A_WEB_HTML = "web-html"        # inline HTML/JS embedded for a web-content regio
 A_CONTENT_KIND = "content-kind"  # web | html | mermaid | code | markdown
 A_CONTENT_SRC = "content-src"    # source text (URL, code, mermaid or markdown)
 A_CONTENT_LANG = "content-lang"  # language hint for code regions
+A_EFFECT_ORDER = "effect-order"  # build step (>=1) at which an object appears
+A_EFFECT_TYPE = "effect-type"    # appear | fade | fly | grow
 
 # Presentation-level config (stored on the root <svg>)
 A_ASPECT = "aspect"
@@ -89,6 +91,13 @@ class PhRole:
     BACKGROUND = "background"
     WEBCONTENT = "webcontent"
     CONTENT = "content"
+
+
+class EffectType:
+    APPEAR = "appear"   # show instantly
+    FADE = "fade"       # fade in
+    FLY = "fly"         # slide up into place
+    GROW = "grow"       # scale up
 
 
 class ContentKind:

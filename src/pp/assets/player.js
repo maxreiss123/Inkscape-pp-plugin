@@ -22,13 +22,49 @@
 
   var slides = collectSlides();
   var current = Math.max(0, Math.min(cfg.start | 0, slides.length - 1));
+  var step = 0;  // build step within the current slide
 
   function bboxOf(el) {
     var raw = (el.getAttribute("data-pp-bbox") || "0 0 100 100").split(/[ ,]+/);
     return raw.map(parseFloat);
   }
 
-  function show(index) {
+  function buildEls(slide) {
+    return Array.prototype.slice.call(
+      slide.querySelectorAll("[data-pp-effect-order]"));
+  }
+
+  function maxStep(slide) {
+    var m = 0;
+    buildEls(slide).forEach(function (el) {
+      m = Math.max(m, parseInt(el.getAttribute("data-pp-effect-order"), 10) || 0);
+    });
+    return m;
+  }
+
+  function applyBuild(slide, upto, animateStep) {
+    buildEls(slide).forEach(function (el) {
+      var o = parseInt(el.getAttribute("data-pp-effect-order"), 10) || 0;
+      if (o <= upto) {
+        el.style.display = "inline";
+        el.setAttribute("class", (el.getAttribute("class") || "")
+          .replace(/\bpp-anim-\w+\b/g, "").trim());
+        if (o === animateStep && animateStep > 0) {
+          var t = el.getAttribute("data-pp-effect-type") || "appear";
+          if (t !== "appear") {
+            // Re-trigger the CSS animation.
+            void el.getBoundingClientRect();
+            el.setAttribute("class",
+              ((el.getAttribute("class") || "") + " pp-anim-" + t).trim());
+          }
+        }
+      } else {
+        el.style.display = "none";
+      }
+    });
+  }
+
+  function show(index, atStep, animateStep) {
     if (index < 0) index = cfg.loop ? slides.length - 1 : 0;
     if (index >= slides.length) index = cfg.loop ? 0 : slides.length - 1;
     current = index;
@@ -44,18 +80,39 @@
         s.setAttribute("class", "pp-slide");
       }
     }
+    step = atStep == null ? 0 : atStep;
+    applyBuild(slides[current], step, animateStep == null ? -1 : animateStep);
     updateIndicator(bb);
   }
 
-  function next() { show(current + 1); }
-  function prev() { show(current - 1); }
+  function next() {
+    if (step < maxStep(slides[current])) {
+      step += 1;
+      applyBuild(slides[current], step, step);
+      updateIndicator(bboxOf(slides[current]));
+    } else {
+      show(current + 1, 0);
+    }
+  }
+
+  function prev() {
+    if (step > 0) {
+      step -= 1;
+      applyBuild(slides[current], step, -1);
+      updateIndicator(bboxOf(slides[current]));
+    } else {
+      var target = current > 0 ? current - 1 : (cfg.loop ? slides.length - 1 : 0);
+      // Enter the previous slide fully built.
+      show(target, maxStep(slides[target]));
+    }
+  }
 
   function onKey(e) {
     switch (e.key) {
       case "ArrowRight": case "PageDown": case " ": case "Enter": next(); break;
       case "ArrowLeft": case "PageUp": case "Backspace": prev(); break;
-      case "Home": show(0); break;
-      case "End": show(slides.length - 1); break;
+      case "Home": show(0, 0); break;
+      case "End": show(slides.length - 1, maxStep(slides[slides.length - 1])); break;
       case "f": case "F": toggleFullscreen(); break;
       case "Escape": if (document.fullscreenElement) document.exitFullscreen(); break;
       default: return;

@@ -40,6 +40,12 @@ All commands live under **Extensions → Presentation**.
   Inline **HTML** and **web page (URL)** regions still render only in the
   interactive browser export (as a `<foreignObject>` / iframe).
   After editing a region's source, run *Render / Refresh Content* to update it.
+- **Build animations** — *Add Animation* reveals objects on click during
+  playback: select objects to appear one after another, a multi-line text box to
+  reveal its bullets one per click, or several objects together; effects are
+  Appear / Fade / Fly in / Grow. In the browser preview / interactive export each
+  click advances one build step before moving to the next slide; Inkscape and PDF
+  show everything. Use *Add Animation → Remove* to clear it.
 - **Import a master** — *Import Master* reads a PowerPoint `.pptx` or
   LibreOffice `.odp` file and applies its theme essentials (slide size/aspect,
   background, accent colour, body font). Placeholder geometry and images are not

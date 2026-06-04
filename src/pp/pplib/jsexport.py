@@ -23,6 +23,15 @@ def embed_asset(name):
         return fh.read()
 
 
+def _export_effects(layer):
+    """Copy build-animation metadata to data-* attributes for the player."""
+    for el in layer.iter():
+        order = S.get_pp(el, C.A_EFFECT_ORDER)
+        if order:
+            el.set("data-pp-effect-order", order)
+            el.set("data-pp-effect-type", S.get_pp(el, C.A_EFFECT_TYPE) or "appear")
+
+
 def _materialize_regions(layer):
     """Turn content regions into renderable output for the browser export.
 
@@ -65,6 +74,7 @@ def build(pres, transition="fade", loop=False, start=0):
         if "display" in layer.style:
             layer.style["display"] = "inline"
         _materialize_regions(layer)
+        _export_effects(layer)
 
     # Remove master layers and namedview (authoring-only).
     for el in list(root):

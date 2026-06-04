@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Add Animation (build on click)</name>
+  <id>org.inkscape.pp.animate</id>
+  <param name="action" type="optiongroup" appearance="combo" gui-text="How to reveal">
+    <option value="sequence">One after another (each click)</option>
+    <option value="bullets">Bullets of a text box, one per click</option>
+    <option value="together">All at once (on one click)</option>
+    <option value="clear">Remove animation from selection</option>
+  </param>
+  <param name="type" type="optiongroup" appearance="combo" gui-text="Effect">
+    <option value="appear">Appear</option>
+    <option value="fade">Fade in</option>
+    <option value="fly">Fly in (from below)</option>
+    <option value="grow">Grow</option>
+  </param>
+  <param name="start" type="int" min="0" max="999" gui-text="Start at step (0 = continue)">0</param>
+  <param name="info" type="description">Select objects (or one multi-line text box / a group of bullets), then run. Each step appears on a click during the browser preview / interactive export; Inkscape and PDF show everything.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_animate.py</command>
+  </script>
+</inkscape-extension>
