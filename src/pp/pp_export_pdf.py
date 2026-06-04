@@ -7,10 +7,12 @@ save the current document to a temp file and invoke ``inkscape`` on it with
 binary is not on PATH, we tell the user to use File > Export instead.
 """
 
+import copy
 import os
 import tempfile
 
 import inkex
+from pplib import anim
 
 
 class ExportPDF(inkex.EffectExtension):
@@ -23,7 +25,11 @@ class ExportPDF(inkex.EffectExtension):
             return
         fd, tmp_svg = tempfile.mkstemp(prefix="pp-export-", suffix=".svg")
         os.close(fd)
-        self.document.write(tmp_svg)
+        # Export a copy with the authoring-only build badges removed, leaving the
+        # user's document (and its badges) untouched.
+        doc_copy = copy.deepcopy(self.document)
+        anim.strip_badges_tree(doc_copy.getroot())
+        doc_copy.write(tmp_svg)
         try:
             from inkex.command import inkscape
             inkscape(tmp_svg, export_type="pdf",

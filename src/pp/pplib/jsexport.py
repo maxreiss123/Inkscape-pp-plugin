@@ -76,6 +76,10 @@ def build(pres, transition="fade", loop=False, start=0):
         _materialize_regions(layer)
         _export_effects(layer)
 
+    # Strip on-canvas build-order badges (authoring aid only).
+    from . import anim
+    anim.strip_badges_tree(root)
+
     # Remove master layers and namedview (authoring-only).
     for el in list(root):
         if S.get_pp(el, C.A_ROLE) == C.Role.MASTER:

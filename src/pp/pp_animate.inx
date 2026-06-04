@@ -7,6 +7,8 @@
     <option value="bullets">Bullets of a text box, one per click</option>
     <option value="together">All at once (on one click)</option>
     <option value="clear">Remove animation from selection</option>
+    <option value="badges">Show build-order badges (this slide)</option>
+    <option value="hide_badges">Hide build-order badges (this slide)</option>
   </param>
   <param name="type" type="optiongroup" appearance="combo" gui-text="Effect">
     <option value="appear">Appear</option>
@@ -15,7 +17,8 @@
     <option value="grow">Grow</option>
   </param>
   <param name="start" type="int" min="0" max="999" gui-text="Start at step (0 = continue)">0</param>
-  <param name="info" type="description">Select objects (or one multi-line text box / a group of bullets), then run. Each step appears on a click during the browser preview / interactive export; Inkscape and PDF show everything.</param>
+  <param name="badges" type="bool" gui-text="Show numbered badges on canvas">true</param>
+  <param name="info" type="description">Select objects (or one multi-line text box / a group of bullets), then run. Each step appears on a click during the browser preview / interactive export; Inkscape and PDF show everything. Numbered badges mark the order on the canvas only (stripped from PDF and the interactive export); use 'Hide build-order badges' before a native File &gt; Export to PDF.</param>
   <effect needs-live-preview="false">
     <object-type>all</object-type>
     <effects-menu>

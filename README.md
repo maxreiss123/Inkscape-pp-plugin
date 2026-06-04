@@ -45,7 +45,10 @@ All commands live under **Extensions → Presentation**.
   reveal its bullets one per click, or several objects together; effects are
   Appear / Fade / Fly in / Grow. In the browser preview / interactive export each
   click advances one build step before moving to the next slide; Inkscape and PDF
-  show everything. Use *Add Animation → Remove* to clear it.
+  show everything. Numbered orange **badges** mark the build order on the canvas
+  (stripped from the PDF and interactive exports); toggle them with *Add
+  Animation → Show / Hide build-order badges*. Use *Add Animation → Remove* to
+  clear an object's animation.
 - **Import a master** — *Import Master* reads a PowerPoint `.pptx` or
   LibreOffice `.odp` file and applies its theme essentials (slide size/aspect,
   background, accent colour, body font). Placeholder geometry and images are not

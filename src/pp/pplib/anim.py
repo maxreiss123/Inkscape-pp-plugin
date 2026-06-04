@@ -149,3 +149,123 @@ def apply(targets, start_order, etype, together=False):
     for i, el in enumerate(ordered):
         set_effect(el, start_order + i, etype)
     return len(ordered)
+
+
+# ---------------------------------------------------------------------------
+# On-canvas build-order badges (authoring aid; stripped from exports)
+# ---------------------------------------------------------------------------
+BADGE = "badge"  # pp:managed value marking a badge element
+_BADGE_FILL = "#e8590c"
+
+
+def is_badge(el):
+    return S.get_pp(el, C.A_MANAGED) == BADGE
+
+
+def clear_badges(slide):
+    for el in list(slide.layer):
+        if is_badge(el):
+            slide.layer.remove(el)
+
+
+def _anchor(slide, el):
+    """Return the slide-local (x, y) where a badge for ``el`` should sit.
+
+    Uses the element's own x/y when present (reliable for text/rect/image, since
+    inkex's text bounding box is only an estimate); otherwise the geometry bbox
+    top-left. Coordinates are mapped through ancestor transforms and de-offset by
+    the slide's page origin so the badge lands correctly in the slide layer.
+    """
+    px, py, _, _ = slide.bbox
+    x_attr, y_attr = el.get("x"), el.get("y")
+    is_text = el.tag.endswith("}text")
+    if x_attr is not None and y_attr is not None:
+        try:
+            lx, ly = float(x_attr), float(y_attr)
+        except ValueError:
+            lx = ly = None
+        if lx is not None:
+            try:
+                ax, ay = el.composed_transform().apply_to_point((lx, ly))
+            except Exception:
+                ax, ay = lx, ly
+            # Text x/y is the baseline-left; nudge the badge just left/above it.
+            if is_text:
+                return ax - px, ay - py, True
+            return ax - px, ay - py, False
+    parent = el.getparent()
+    tf = parent.composed_transform() if parent is not None else None
+    try:
+        bb = el.bounding_box(tf)
+    except Exception:
+        bb = None
+    if bb is None:
+        return None
+    return bb.left - px, bb.top - py, False
+
+
+def _make_badge(order, cx, cy, r=22):
+    from inkex import Circle, Group, Tspan
+
+    g = Group()
+    S.set_pp(g, C.A_MANAGED, BADGE)
+    g.set(C.cn("badge"), "true")
+    circle = Circle()
+    circle.set("cx", str(round(cx, 2)))
+    circle.set("cy", str(round(cy, 2)))
+    circle.set("r", str(r))
+    circle.style = {"fill": _BADGE_FILL, "stroke": "#ffffff", "stroke-width": "2",
+                    "opacity": "0.92"}
+    g.add(circle)
+    from inkex import TextElement
+    t = TextElement()
+    t.set("x", str(round(cx, 2)))
+    t.set("y", str(round(cy + r * 0.34, 2)))
+    t.style = {"font-size": "%gpx" % (r * 1.1), "font-family": "sans-serif",
+               "font-weight": "bold", "fill": "#ffffff", "text-anchor": "middle"}
+    sp = Tspan()
+    sp.text = str(order)
+    sp.set("x", str(round(cx, 2)))
+    t.add(sp)
+    g.add(t)
+    return g
+
+
+def refresh_badges(slide):
+    """(Re)draw a numbered badge at the top-left of each animated object."""
+    clear_badges(slide)
+    items = []
+    for el in slide.layer.iter():
+        if is_badge(el):
+            continue
+        o = S.get_pp(el, C.A_EFFECT_ORDER)
+        if o:
+            try:
+                items.append((int(o), el))
+            except ValueError:
+                pass
+    count = 0
+    r = 22
+    for order, el in items:
+        anchor = _anchor(slide, el)
+        if anchor is None:
+            continue
+        ax, ay, is_text = anchor
+        if is_text:
+            # Sit just left of the text start, around the cap height.
+            cx, cy = ax - r - 4, ay - r * 0.5
+        else:
+            # Top-left corner of the object.
+            cx, cy = ax + r * 0.2, ay + r * 0.2
+        slide.layer.add(_make_badge(order, cx, cy, r))
+        count += 1
+    return count
+
+
+def strip_badges_tree(root):
+    """Remove all badge elements from an arbitrary SVG subtree (for exports)."""
+    for el in list(root.iter()):
+        if S.get_pp(el, C.A_MANAGED) == BADGE:
+            parent = el.getparent()
+            if parent is not None:
+                parent.remove(el)

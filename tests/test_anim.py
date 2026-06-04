@@ -72,3 +72,39 @@ def test_effects_exported_as_data_attrs(presentation):
     # Player understands build steps.
     assert "data-pp-effect-order" in ET.tostring(tree).decode()
     assert "maxStep" in ET.tostring(tree).decode()
+
+
+def test_badges_drawn_and_stripped_from_export(presentation):
+    slide = presentation.slides()[0]
+    box = S.make_text(300, 300, ["one", "two", "three"], 40)
+    slide.layer.add(box)
+    lines = anim.split_text_lines(box)
+    anim.apply(lines, 1, C.EffectType.APPEAR)
+    n = anim.refresh_badges(slide)
+    assert n == 3
+    assert len([e for e in slide.layer if anim.is_badge(e)]) == 3
+
+    # Badges must not appear in the interactive export.
+    tree = jsexport.build(presentation)
+    badges = [e for e in tree.getroot().iter() if anim.is_badge(e)]
+    assert badges == []
+
+
+def test_refresh_badges_is_idempotent(presentation):
+    slide = presentation.slides()[0]
+    r = inkex.Rectangle(x="10", y="10", width="50", height="50")
+    slide.layer.add(r)
+    anim.set_effect(r, 1, C.EffectType.APPEAR)
+    anim.refresh_badges(slide)
+    anim.refresh_badges(slide)
+    assert len([e for e in slide.layer if anim.is_badge(e)]) == 1
+
+
+def test_clear_badges(presentation):
+    slide = presentation.slides()[0]
+    r = inkex.Rectangle(x="10", y="10", width="50", height="50")
+    slide.layer.add(r)
+    anim.set_effect(r, 1, C.EffectType.APPEAR)
+    anim.refresh_badges(slide)
+    anim.clear_badges(slide)
+    assert [e for e in slide.layer if anim.is_badge(e)] == []
