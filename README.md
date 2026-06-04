@@ -26,6 +26,15 @@ All commands live under **Extensions → Presentation**.
 - **Web content regions** — draw a rectangle, then *Add Web Content* to embed a
   live web page (iframe) or inline HTML/JS there. It renders in the interactive
   SVG export / browser preview; on the canvas it appears as a labelled box.
+- **Rich content regions** — *Add Content* renders a **Mermaid** diagram, a
+  syntax-highlighted **source-code** snippet, **Markdown**, inline HTML or a web
+  page inside a region you draw. Provide the source inline, from a file, or by
+  selecting a text object. (Mermaid / highlight.js / marked load from a CDN, so
+  presenting these needs an internet connection.)
+- **Import a master** — *Import Master* reads a PowerPoint `.pptx` or
+  LibreOffice `.odp` file and applies its theme essentials (slide size/aspect,
+  background, accent colour, body font). Placeholder geometry and images are not
+  imported.
 - **Position helpers** — align/distribute selected objects to the page, page
   margins or each other, and drop margin / center / title-safe guides.
 - **Export to PDF** — one PDF page per slide (uses Inkscape's own exporter).

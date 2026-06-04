@@ -89,11 +89,42 @@ def build(pres, transition="fade", loop=False, start=0):
     cfg_script.set("type", "application/ecmascript")
     cfg_script.text = ET.CDATA("\nwindow.PP_CONFIG = %s;\n" % json.dumps(config))
 
+    _inject_content_renderers(root, work)
+
     player = ET.SubElement(root, "{%s}script" % SVG)
     player.set("type", "application/ecmascript")
     player.text = ET.CDATA("\n" + embed_asset("player.js") + "\n")
 
     return root.getroottree()
+
+
+def _external_script(root, url):
+    el = ET.SubElement(root, "{%s}script" % SVG)
+    el.set("type", "application/ecmascript")
+    # Set both href forms for broad browser support of external SVG scripts.
+    el.set("href", url)
+    el.set("{http://www.w3.org/1999/xlink}href", url)
+    return el
+
+
+def _inject_content_renderers(root, work):
+    """Add CDN renderer libraries + the content init script when needed."""
+    from . import webcontent
+
+    kinds = webcontent.kinds_in(work)
+    if C.ContentKind.MERMAID in kinds:
+        _external_script(root, C.CDN["mermaid"])
+    if C.ContentKind.MARKDOWN in kinds:
+        _external_script(root, C.CDN["marked"])
+    if C.ContentKind.CODE in kinds:
+        _external_script(root, C.CDN["hljs"])
+        link = ET.SubElement(root, "{%s}style" % SVG)
+        link.set("type", "text/css")
+        link.text = ET.CDATA("@import url('%s');" % C.CDN["hljs_css"])
+    if kinds & {C.ContentKind.MERMAID, C.ContentKind.MARKDOWN, C.ContentKind.CODE}:
+        init = ET.SubElement(root, "{%s}script" % SVG)
+        init.set("type", "application/ecmascript")
+        init.text = ET.CDATA("\n" + embed_asset("content.js") + "\n")
 
 
 def write(pres, path, **kw):

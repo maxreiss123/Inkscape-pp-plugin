@@ -57,6 +57,9 @@ A_USER_EDITED = "user-edited"  # "true" => user changed it, protect from overwri
 A_MASTER_DEF = "master-def"    # JSON master definition (on master layer / root)
 A_WEB_SRC = "web-src"          # URL embedded (iframe) for a web-content region
 A_WEB_HTML = "web-html"        # inline HTML/JS embedded for a web-content region
+A_CONTENT_KIND = "content-kind"  # web | html | mermaid | code | markdown
+A_CONTENT_SRC = "content-src"    # source text (URL, code, mermaid or markdown)
+A_CONTENT_LANG = "content-lang"  # language hint for code regions
 
 # Presentation-level config (stored on the root <svg>)
 A_ASPECT = "aspect"
@@ -85,6 +88,25 @@ class PhRole:
     LOGO = "logo"
     BACKGROUND = "background"
     WEBCONTENT = "webcontent"
+    CONTENT = "content"
+
+
+class ContentKind:
+    WEB = "web"            # embed a URL via <iframe>
+    HTML = "html"          # inline HTML/JS
+    MERMAID = "mermaid"    # Mermaid diagram source
+    CODE = "code"          # source-code snippet (syntax highlighted)
+    MARKDOWN = "markdown"  # GitHub-flavoured Markdown
+
+
+# CDN URLs for the in-browser renderers (used by the interactive SVG export).
+# Bump versions here in one place.
+CDN = {
+    "mermaid": "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js",
+    "marked": "https://cdn.jsdelivr.net/npm/marked/marked.min.js",
+    "hljs": "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release/build/highlight.min.js",
+    "hljs_css": "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release/build/styles/github.min.css",
+}
 
 
 class Field:

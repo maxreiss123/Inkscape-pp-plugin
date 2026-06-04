@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Import Master (PowerPoint / LibreOffice)</name>
+  <id>org.inkscape.pp.import_master</id>
+  <param name="file" type="path" mode="file" filetypes="pptx,odp" gui-text="Presentation file (.pptx / .odp)"></param>
+  <param name="resize" type="bool" gui-text="Match slide size / aspect">true</param>
+  <param name="info" type="description">Imports theme essentials (size, background, accent, body font). Placeholder geometry and images are not imported.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_import_master.py</command>
+  </script>
+</inkscape-extension>

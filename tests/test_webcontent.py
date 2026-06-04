@@ -11,8 +11,9 @@ def test_add_web_region_marks_metadata(presentation):
     slide = presentation.slides()[0]
     group = webcontent.add_web_region(slide, (100, 100, 800, 400),
                                       src="https://example.com", label="Demo")
-    assert S.get_pp(group, C.A_PH_ROLE) == C.PhRole.WEBCONTENT
-    assert S.get_pp(group, C.A_WEB_SRC) == "https://example.com"
+    assert S.get_pp(group, C.A_PH_ROLE) == C.PhRole.CONTENT
+    assert webcontent.region_kind(group) == C.ContentKind.WEB
+    assert webcontent.region_source(group) == "https://example.com"
     regions = list(webcontent.iter_regions(slide.layer))
     assert len(regions) == 1
     _, bounds = regions[0]
@@ -41,3 +42,51 @@ def test_export_inline_html(presentation):
     assert len(fobjs) == 1
     # The inline markup is embedded as real XHTML nodes.
     assert root.findall(".//{%s}canvas" % XHTML)
+
+
+def test_mermaid_region_export(presentation):
+    slide = presentation.slides()[0]
+    webcontent.add_content_region(slide, (10, 10, 800, 400),
+                                  C.ContentKind.MERMAID,
+                                  "graph TD; A-->B; B-->C;")
+    tree = jsexport.build(presentation)
+    root = tree.getroot()
+    pres_data = ET.tostring(tree).decode()
+    mermaids = root.findall(".//{%s}pre[@class='mermaid']" % XHTML)
+    assert len(mermaids) == 1
+    assert "A-->B" in mermaids[0].text
+    assert C.CDN["mermaid"] in pres_data           # CDN lib injected
+    assert "whenReady" in pres_data                # content.js injected
+
+
+def test_code_region_export(presentation):
+    slide = presentation.slides()[1]
+    webcontent.add_content_region(slide, (10, 10, 800, 400),
+                                  C.ContentKind.CODE,
+                                  "def f():\n    return 1\n", lang="python")
+    tree = jsexport.build(presentation)
+    root = tree.getroot()
+    codes = root.findall(".//{%s}code" % XHTML)
+    assert len(codes) == 1
+    assert "language-python" in codes[0].get("class")
+    assert "return 1" in codes[0].text
+    assert C.CDN["hljs"] in ET.tostring(tree).decode()
+
+
+def test_markdown_region_export(presentation):
+    slide = presentation.slides()[2]
+    webcontent.add_content_region(slide, (10, 10, 800, 400),
+                                  C.ContentKind.MARKDOWN,
+                                  "# Title\n\n- one\n- two\n")
+    tree = jsexport.build(presentation)
+    root = tree.getroot()
+    mds = root.findall(".//{%s}div[@class='pp-md']" % XHTML)
+    assert len(mds) == 1
+    assert "# Title" in mds[0].text
+    assert C.CDN["marked"] in ET.tostring(tree).decode()
+
+
+def test_no_cdn_when_no_rich_content(presentation):
+    data = ET.tostring(jsexport.build(presentation)).decode()
+    assert C.CDN["mermaid"] not in data
+    assert C.CDN["marked"] not in data
