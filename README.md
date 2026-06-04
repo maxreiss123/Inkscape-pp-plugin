@@ -33,8 +33,10 @@ All commands live under **Extensions → Presentation**.
   text box, load it from a file, or select a text object on the canvas to use as
   the source. *Markdown* supports headings, lists, block-quotes,
   rules, tables, fenced code and inline bold/italic/code; *code* is highlighted
-  with Pygments when available. *Mermaid* renders to SVG when the `mmdc`
-  (mermaid-cli) tool is installed, otherwise it falls back to a code block.
+  with Pygments when available. *Mermaid* `flowchart`/`graph` diagrams render to
+  native SVG (boxes, decisions, arrows and labels) with no external tools; if the
+  `mmdc` (mermaid-cli) tool is installed it is used for full fidelity and other
+  diagram types, otherwise unsupported types fall back to a code block.
   Inline **HTML** and **web page (URL)** regions still render only in the
   interactive browser export (as a `<foreignObject>` / iframe).
   After editing a region's source, run *Render / Refresh Content* to update it.

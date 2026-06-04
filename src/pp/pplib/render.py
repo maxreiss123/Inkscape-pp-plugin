@@ -242,14 +242,42 @@ def render_code(src, lang, width, height, font=20, with_bg=True):
 
 
 # ---------------------------------------------------------------------------
-# Mermaid rendering (via mmdc CLI if available)
+# Mermaid rendering
 # ---------------------------------------------------------------------------
 def mermaid_available():
     return shutil.which("mmdc") is not None
 
 
 def render_mermaid(src, width, height):
-    """Render Mermaid to an SVG group via mmdc, or None if unavailable/failed."""
+    """Render Mermaid to an SVG group.
+
+    Order of preference: the ``mmdc`` CLI (full fidelity) if installed, then a
+    built-in native renderer for flowchart/graph diagrams. Returns
+    (group, content_w, content_h) or None when nothing can render it (the caller
+    then falls back to a code block).
+    """
+    via = _render_mermaid_mmdc(src, width, height)
+    if via is not None:
+        return via
+    if _mermaid_kind(src) in ("flowchart", "graph"):
+        return render_flowchart(src, width, height)
+    return None
+
+
+def _mermaid_kind(src):
+    for line in src.splitlines():
+        s = line.strip()
+        if not s or s.startswith("%%"):
+            continue
+        first = s.split()[0].lower()
+        if first in ("flowchart", "graph"):
+            return "flowchart" if first == "flowchart" else "graph"
+        return first
+    return ""
+
+
+def _render_mermaid_mmdc(src, width, height):
+    """Render Mermaid via the mmdc CLI, or None if unavailable/failed."""
     import lxml.etree as ET
     from inkex import Group
 
@@ -281,6 +309,305 @@ def render_mermaid(src, width, height):
         return None
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------
+# Native Mermaid flowchart renderer (subset: flowchart / graph)
+# ---------------------------------------------------------------------------
+# Shape wrappers, longest/compound first so e.g. ([..]) wins over (..).
+_NODE_SHAPES = [
+    ("stadium", r"\(\[(.*?)\]\)"),
+    ("subroutine", r"\[\[(.*?)\]\]"),
+    ("cylinder", r"\[\((.*?)\)\]"),
+    ("circle", r"\(\((.*?)\)\)"),
+    ("hexagon", r"\{\{(.*?)\}\}"),
+    ("rhombus", r"\{(.*?)\}"),
+    ("round", r"\((.*?)\)"),
+    ("rect", r"\[(.*?)\]"),
+    ("flag", r">(.*?)\]"),
+]
+_EDGE_RE = re.compile(r"\s*(<?-{2,3}[->ox]?|<?={2,3}>?|-\.-+>?|o-{2,3}|x-{2,3})"
+                      r"\s*(?:\|([^|]*)\|\s*)?")
+_FLOW_NODE_FILL = "#eef2ff"
+_FLOW_NODE_STROKE = "#5b6b9a"
+_FLOW_EDGE = "#4b5563"
+
+
+def _clean_label(text):
+    if text is None:
+        return None
+    text = text.strip().strip('"').strip("'")
+    return text.replace("<br/>", "\n").replace("<br>", "\n").replace("<br />", "\n")
+
+
+def _read_node(line, pos, nodes, order):
+    m = re.match(r"\s*([A-Za-z0-9_]+)", line[pos:])
+    if not m:
+        return None, pos
+    nid = m.group(1)
+    pos += m.end()
+    label, shape = None, "rect"
+    for sh, pat in _NODE_SHAPES:
+        mm = re.match(r"\s*" + pat, line[pos:], re.S)
+        if mm:
+            shape, label, pos = sh, _clean_label(mm.group(1)), pos + mm.end()
+            break
+    if nid not in nodes:
+        nodes[nid] = {"label": label if label is not None else nid, "shape": shape}
+        order.append(nid)
+    elif label is not None:
+        nodes[nid]["label"] = label
+        nodes[nid]["shape"] = shape
+    return nid, pos
+
+
+def _read_group(line, pos, nodes, order):
+    first, pos = _read_node(line, pos, nodes, order)
+    if first is None:
+        return None, pos
+    ids = [first]
+    while True:
+        m = re.match(r"\s*&\s*", line[pos:])
+        if not m:
+            break
+        pos += m.end()
+        nid, pos = _read_node(line, pos, nodes, order)
+        if nid is None:
+            break
+        ids.append(nid)
+    return ids, pos
+
+
+def _parse_line(line, nodes, edges, order):
+    line = line.strip()
+    if not line or line.startswith("%%"):
+        return
+    low = line.lower()
+    if low.startswith(("subgraph", "end", "direction", "style", "classdef",
+                       "class ", "click", "linkstyle")):
+        return
+    # Normalise mid-text link labels (A -- text --> B) to the |label| form.
+    line = re.sub(r"--\s*([^|>\-][^>|]*?)\s*-->", r"-->|\1|", line)
+    line = re.sub(r"==\s*([^|>=][^>|]*?)\s*==>", r"==>|\1|", line)
+
+    grp, pos = _read_group(line, 0, nodes, order)
+    if grp is None:
+        return
+    while pos < len(line):
+        m = _EDGE_RE.match(line, pos)
+        if not m:
+            break
+        op, label = m.group(1), m.group(2) or ""
+        pos = m.end()
+        grp2, pos = _read_group(line, pos, nodes, order)
+        if grp2 is None:
+            break
+        style = "thick" if "=" in op else "dotted" if "." in op else "solid"
+        for a in grp:
+            for b in grp2:
+                edges.append({"src": a, "dst": b, "label": _clean_label(label),
+                              "style": style})
+        grp = grp2
+
+
+def parse_flowchart(src):
+    nodes, edges, order = {}, [], []
+    direction = "TD"
+    for raw in src.splitlines():
+        s = raw.strip()
+        if not s:
+            continue
+        m = re.match(r"(?:flowchart|graph)\s+(TB|TD|BT|RL|LR)\b", s, re.I)
+        if m:
+            direction = m.group(1).upper()
+            continue
+        _parse_line(raw, nodes, edges, order)
+    return direction, nodes, edges, order
+
+
+def _rank_nodes(order, edges):
+    rank = {n: 0 for n in order}
+    adj = [(e["src"], e["dst"]) for e in edges if e["src"] != e["dst"]]
+    for _ in range(len(order) + 1):
+        changed = False
+        for a, b in adj:
+            if a in rank and b in rank and rank[b] < rank[a] + 1:
+                rank[b] = rank[a] + 1
+                changed = True
+        if not changed:
+            break
+    return rank
+
+
+def _node_size(node, font):
+    lines = node["label"].split("\n")
+    pad = font * 0.9
+    w = max((len(ln) for ln in lines), default=1) * _char_w(font) + 2 * pad
+    h = len(lines) * font * 1.25 + 2 * pad
+    if node["shape"] in ("circle", "rhombus", "hexagon"):
+        w = h = max(w, h)
+    return max(90.0, w), max(48.0, h)
+
+
+def _flow_shape(node, cx, cy, w, h):
+    from inkex import Ellipse, PathElement, Rectangle
+
+    shape = node["shape"]
+    style = {"fill": _FLOW_NODE_FILL, "stroke": _FLOW_NODE_STROKE,
+             "stroke-width": "2"}
+    if shape == "circle":
+        el = Ellipse()
+        el.set("cx", str(cx))
+        el.set("cy", str(cy))
+        el.set("rx", str(w / 2))
+        el.set("ry", str(h / 2))
+    elif shape == "rhombus":
+        el = PathElement()
+        el.set("d", "M %g %g L %g %g L %g %g L %g %g Z" % (
+            cx, cy - h / 2, cx + w / 2, cy, cx, cy + h / 2, cx - w / 2, cy))
+    else:
+        el = Rectangle()
+        el.set("x", str(cx - w / 2))
+        el.set("y", str(cy - h / 2))
+        el.set("width", str(w))
+        el.set("height", str(h))
+        if shape in ("round", "stadium"):
+            el.set("rx", str(h / 2 if shape == "stadium" else 12))
+    el.style = style
+    return el
+
+
+def _centered_text(cx, cy, lines, font, color=_TEXT_FG):
+    t = _text(cx, cy, font)
+    t.style["text-anchor"] = "middle"
+    t.style["fill"] = color
+    total = (len(lines) - 1) * font * 1.2
+    y0 = cy - total / 2 + font * 0.33
+    t.set("y", str(round(y0, 2)))
+    for i, ln in enumerate(lines):
+        sp = _span(ln)
+        sp.set("x", str(round(cx, 2)))
+        sp.set("dy", "0" if i == 0 else str(round(font * 1.2, 2)))
+        t.add(sp)
+    return t
+
+
+def _border_point(cx, cy, hw, hh, tx, ty):
+    dx, dy = tx - cx, ty - cy
+    if dx == 0 and dy == 0:
+        return cx, cy
+    sx = hw / abs(dx) if dx else 1e9
+    sy = hh / abs(dy) if dy else 1e9
+    s = min(sx, sy)
+    return cx + dx * s, cy + dy * s
+
+
+def render_flowchart(src, width, height, font=22):
+    """Render a Mermaid flowchart/graph to a native SVG group, or None."""
+    import math
+
+    from inkex import Group, PathElement, Rectangle
+
+    direction, nodes, edges, order = parse_flowchart(src)
+    if not nodes:
+        return None
+
+    horizontal = direction in ("LR", "RL")
+    rank = _rank_nodes(order, edges)
+    sizes = {n: _node_size(nodes[n], font) for n in order}
+
+    layers = {}
+    for n in order:
+        layers.setdefault(rank[n], []).append(n)
+
+    gap_main, gap_cross = 80.0, 44.0
+    pos = {}
+    main_cursor = 0.0
+    for r in sorted(layers):
+        members = layers[r]
+        if horizontal:
+            layer_extent = max(sizes[n][0] for n in members)
+            cross_total = sum(sizes[n][1] for n in members) + gap_cross * (len(members) - 1)
+            c = -cross_total / 2
+            for n in members:
+                w, h = sizes[n]
+                pos[n] = (main_cursor + layer_extent / 2, c + h / 2)
+                c += h + gap_cross
+            main_cursor += layer_extent + gap_main
+        else:
+            layer_extent = max(sizes[n][1] for n in members)
+            cross_total = sum(sizes[n][0] for n in members) + gap_cross * (len(members) - 1)
+            c = -cross_total / 2
+            for n in members:
+                w, h = sizes[n]
+                pos[n] = (c + w / 2, main_cursor + layer_extent / 2)
+                c += w + gap_cross
+            main_cursor += layer_extent + gap_main
+
+    # Flip for reversed directions.
+    if direction == "RL":
+        pos = {n: (-x, y) for n, (x, y) in pos.items()}
+    elif direction == "BT":
+        pos = {n: (x, -y) for n, (x, y) in pos.items()}
+
+    # Normalise to a (0,0) origin with a margin.
+    margin = 20.0
+    xs = [pos[n][0] - sizes[n][0] / 2 for n in order] + \
+         [pos[n][0] + sizes[n][0] / 2 for n in order]
+    ys = [pos[n][1] - sizes[n][1] / 2 for n in order] + \
+         [pos[n][1] + sizes[n][1] / 2 for n in order]
+    minx, miny = min(xs) - margin, min(ys) - margin
+    cw = max(xs) - minx + margin
+    ch = max(ys) - miny + margin
+    pos = {n: (x - minx, y - miny) for n, (x, y) in pos.items()}
+
+    group = Group()
+
+    # Edges first (under nodes).
+    for e in edges:
+        a, b = e["src"], e["dst"]
+        if a not in pos or b not in pos:
+            continue
+        ax, ay = pos[a]
+        bx, by = pos[b]
+        aw, ah = sizes[a]
+        bw, bh = sizes[b]
+        sx, sy = _border_point(ax, ay, aw / 2, ah / 2, bx, by)
+        ex, ey = _border_point(bx, by, bw / 2, bh / 2, ax, ay)
+        line = PathElement()
+        line.set("d", "M %g %g L %g %g" % (sx, sy, ex, ey))
+        dash = "6,5" if e["style"] == "dotted" else "none"
+        line.style = {"fill": "none", "stroke": _FLOW_EDGE,
+                      "stroke-width": "3" if e["style"] == "thick" else "2",
+                      "stroke-dasharray": dash}
+        group.add(line)
+        # Arrowhead.
+        ang = math.atan2(ey - sy, ex - sx)
+        size = 11.0
+        p1 = (ex, ey)
+        p2 = (ex - size * math.cos(ang - 0.45), ey - size * math.sin(ang - 0.45))
+        p3 = (ex - size * math.cos(ang + 0.45), ey - size * math.sin(ang + 0.45))
+        head = PathElement()
+        head.set("d", "M %g %g L %g %g L %g %g Z" % (p1 + p2 + p3))
+        head.style = {"fill": _FLOW_EDGE, "stroke": "none"}
+        group.add(head)
+        if e["label"]:
+            mx, my = (sx + ex) / 2, (sy + ey) / 2
+            lblw = len(e["label"]) * _char_w(font * 0.7) + 8
+            bg = Rectangle(x=str(mx - lblw / 2), y=str(my - font * 0.55),
+                           width=str(lblw), height=str(font * 0.95))
+            bg.style = {"fill": "#ffffff", "stroke": "none"}
+            group.add(bg)
+            group.add(_centered_text(mx, my, [e["label"]], font * 0.7, color="#374151"))
+
+    # Nodes.
+    for n in order:
+        cx, cy = pos[n]
+        w, h = sizes[n]
+        group.add(_flow_shape(nodes[n], cx, cy, w, h))
+        group.add(_centered_text(cx, cy, nodes[n]["label"].split("\n"), font))
+
+    return group, cw, ch
 
 
 # ---------------------------------------------------------------------------
