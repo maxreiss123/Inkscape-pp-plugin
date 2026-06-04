@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Render / Refresh Content</name>
+  <id>org.inkscape.pp.render_content</id>
+  <param name="scope" type="optiongroup" appearance="combo" gui-text="Render content on">
+    <option value="all">All slides</option>
+    <option value="current">Current slide</option>
+  </param>
+  <param name="info" type="description">Renders Mermaid / code / Markdown regions to native SVG so they show on the slide and in PDF. Mermaid needs the 'mmdc' tool installed; otherwise it shows as a code block.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_render_content.py</command>
+  </script>
+</inkscape-extension>

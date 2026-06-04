@@ -154,6 +154,44 @@ def kinds_in(presentation):
     return found
 
 
+def render_into(group, bounds):
+    """Render a region's source into native SVG inside the group.
+
+    Removes any previous render and the canvas prompt preview, leaving the
+    rendered content (so it shows on the slide, in PDF and in the browser).
+    Returns the render wrapper, or None for web/html / empty regions.
+    """
+    from . import render
+
+    # Drop a previous render so re-rendering is idempotent.
+    for child in list(group):
+        if S.get_pp(child, C.A_MANAGED) == "render":
+            group.remove(child)
+
+    wrapper = render.render_region(group, bounds) if bounds is not None else None
+    if wrapper is None:
+        return None
+
+    # Replace the authoring preview with the rendered content; keep a faint frame.
+    for child in list(group):
+        if child.get(C.cn("prompt")) == "true":
+            group.remove(child)
+        elif child.get(C.cn("ph-bounds")) == "true":
+            child.style = {"fill": "none", "stroke": "#e1e4e8", "stroke-width": "1"}
+    group.add(wrapper)
+    return wrapper
+
+
+def render_all(presentation):
+    """(Re)render every renderable content region. Returns the count rendered."""
+    count = 0
+    for slide in presentation.slides():
+        for group, bounds in iter_regions(slide.layer):
+            if render_into(group, bounds) is not None:
+                count += 1
+    return count
+
+
 def build_foreign_object(group, bounds):
     """Build a <foreignObject> rendering the region, by kind.
 

@@ -82,11 +82,19 @@ class AddContent(inkex.EffectExtension):
             for el in selection:
                 el.getparent().remove(el)
 
-        webcontent.add_content_region(
+        group = webcontent.add_content_region(
             slide, local_rect, self.options.kind, src,
             lang=self.options.lang or None,
             label=self.options.label or None,
         )
+        # Render Markdown / code / Mermaid to native SVG now so it shows on the
+        # slide (and in PDF). Web/HTML stay as a labelled box (browser-only).
+        bounds = None
+        for sub in group:
+            if sub.get(C.cn("ph-bounds")) == "true":
+                bounds = sub
+                break
+        webcontent.render_into(group, bounds)
 
 
 if __name__ == "__main__":

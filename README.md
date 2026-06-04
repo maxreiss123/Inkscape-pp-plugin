@@ -26,11 +26,17 @@ All commands live under **Extensions → Presentation**.
 - **Web content regions** — draw a rectangle, then *Add Web Content* to embed a
   live web page (iframe) or inline HTML/JS there. It renders in the interactive
   SVG export / browser preview; on the canvas it appears as a labelled box.
-- **Rich content regions** — *Add Content* renders a **Mermaid** diagram, a
-  syntax-highlighted **source-code** snippet, **Markdown**, inline HTML or a web
-  page inside a region you draw. Provide the source inline, from a file, or by
-  selecting a text object. (Mermaid / highlight.js / marked load from a CDN, so
-  presenting these needs an internet connection.)
+- **Rich content regions** — *Add Content* renders **Markdown**, a
+  syntax-highlighted **source-code** snippet, or a **Mermaid** diagram into
+  native SVG inside a region you draw, so it shows on the slide itself and in PDF
+  export (no internet needed). Provide the source inline, from a file, or by
+  selecting a text object. *Markdown* supports headings, lists, block-quotes,
+  rules, tables, fenced code and inline bold/italic/code; *code* is highlighted
+  with Pygments when available. *Mermaid* renders to SVG when the `mmdc`
+  (mermaid-cli) tool is installed, otherwise it falls back to a code block.
+  Inline **HTML** and **web page (URL)** regions still render only in the
+  interactive browser export (as a `<foreignObject>` / iframe).
+  After editing a region's source, run *Render / Refresh Content* to update it.
 - **Import a master** — *Import Master* reads a PowerPoint `.pptx` or
   LibreOffice `.odp` file and applies its theme essentials (slide size/aspect,
   background, accent colour, body font). Placeholder geometry and images are not

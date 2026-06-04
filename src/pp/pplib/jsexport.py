@@ -23,23 +23,26 @@ def embed_asset(name):
         return fh.read()
 
 
-def _render_web_regions(layer):
-    """Replace each web-content region's placeholder text with a live iframe/HTML.
+def _materialize_regions(layer):
+    """Turn content regions into renderable output for the browser export.
 
-    The dashed bounds rectangle is kept as a frame; a <foreignObject> with the
-    actual web content is appended so it renders in the browser.
+    Markdown / code / Mermaid are rendered to native SVG (so they appear with no
+    network dependency); web / inline-HTML become a live <foreignObject>.
     """
     from . import webcontent
 
     for group, bounds in list(webcontent.iter_regions(layer)):
-        fo = webcontent.build_foreign_object(group, bounds)
-        if fo is None:
-            continue
-        # Drop the canvas-only prompt label so it does not cover the content.
-        for child in list(group):
-            if child.get(C.cn("prompt")) == "true":
-                group.remove(child)
-        group.append(fo)
+        kind = webcontent.region_kind(group)
+        if kind in (C.ContentKind.WEB, C.ContentKind.HTML):
+            fo = webcontent.build_foreign_object(group, bounds)
+            if fo is None:
+                continue
+            for child in list(group):
+                if child.get(C.cn("prompt")) == "true":
+                    group.remove(child)
+            group.append(fo)
+        else:
+            webcontent.render_into(group, bounds)
 
 
 def build(pres, transition="fade", loop=False, start=0):
@@ -61,7 +64,7 @@ def build(pres, transition="fade", loop=False, start=0):
         # Make sure the authoring "hidden layer" display state does not hide it.
         if "display" in layer.style:
             layer.style["display"] = "inline"
-        _render_web_regions(layer)
+        _materialize_regions(layer)
 
     # Remove master layers and namedview (authoring-only).
     for el in list(root):
@@ -89,44 +92,11 @@ def build(pres, transition="fade", loop=False, start=0):
     cfg_script.set("type", "application/ecmascript")
     cfg_script.text = ET.CDATA("\nwindow.PP_CONFIG = %s;\n" % json.dumps(config))
 
-    _inject_content_renderers(root, work)
-
     player = ET.SubElement(root, "{%s}script" % SVG)
     player.set("type", "application/ecmascript")
     player.text = ET.CDATA("\n" + embed_asset("player.js") + "\n")
 
     return root.getroottree()
-
-
-def _external_script(root, url):
-    el = ET.SubElement(root, "{%s}script" % SVG)
-    el.set("type", "application/ecmascript")
-    # Set both href forms for broad browser support of external SVG scripts.
-    el.set("href", url)
-    el.set("{http://www.w3.org/1999/xlink}href", url)
-    return el
-
-
-def _inject_content_renderers(root, work):
-    """Add CDN renderer libraries + the content init script when needed."""
-    from . import webcontent
-
-    kinds = webcontent.kinds_in(work)
-    if C.ContentKind.MERMAID in kinds:
-        _external_script(root, C.CDN["mermaid"])
-    if C.ContentKind.MARKDOWN in kinds:
-        _external_script(root, C.CDN["marked"])
-    if C.ContentKind.CODE in kinds:
-        _external_script(root, C.CDN["hljs"])
-        # An xml-stylesheet PI applies the theme document-wide, including inside
-        # foreignObject XHTML -- more reliable than @import in an SVG <style>.
-        pi = ET.ProcessingInstruction(
-            "xml-stylesheet", 'type="text/css" href="%s"' % C.CDN["hljs_css"])
-        root.addprevious(pi)
-    if kinds & {C.ContentKind.MERMAID, C.ContentKind.MARKDOWN, C.ContentKind.CODE}:
-        init = ET.SubElement(root, "{%s}script" % SVG)
-        init.set("type", "application/ecmascript")
-        init.text = ET.CDATA("\n" + embed_asset("content.js") + "\n")
 
 
 def write(pres, path, **kw):
