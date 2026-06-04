@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Delete Slide</name>
+  <id>org.inkscape.pp.slide_delete</id>
+  <param name="source" type="optiongroup" appearance="combo" gui-text="Slide to delete">
+    <option value="current">Current slide</option>
+    <option value="index">By number</option>
+  </param>
+  <param name="index" type="int" min="1" max="1000" gui-text="Slide number (if 'By number')">1</param>
+  <param name="info" type="description">Tip: assign a shortcut (e.g. Delete) under Preferences &gt; Interface &gt; Keyboard, searching for "Delete Slide".</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_slide_delete.py</command>
+  </script>
+</inkscape-extension>

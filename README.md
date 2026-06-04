@@ -19,8 +19,13 @@ All commands live under **Extensions → Presentation**.
 - **Auto numbering / footers / date** — slide numbers, total count, footer text
   and date are filled in and re-flow automatically when you add, duplicate or
   reorder slides.
-- **Slide management** — new slide from a layout, duplicate, and reorder
-  (up / down / to front / to back / to a position).
+- **Slide management** — new slide from a layout, duplicate, delete, and reorder
+  (up / down / to front / to back / to a position). You can assign a keyboard
+  shortcut (e.g. Delete) to *Delete Slide* via
+  Edit → Preferences → Interface → Keyboard.
+- **Web content regions** — draw a rectangle, then *Add Web Content* to embed a
+  live web page (iframe) or inline HTML/JS there. It renders in the interactive
+  SVG export / browser preview; on the canvas it appears as a labelled box.
 - **Position helpers** — align/distribute selected objects to the page, page
   margins or each other, and drop margin / center / title-safe guides.
 - **Export to PDF** — one PDF page per slide (uses Inkscape's own exporter).

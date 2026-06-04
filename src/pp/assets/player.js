@@ -44,7 +44,7 @@
         s.setAttribute("class", "pp-slide");
       }
     }
-    updateIndicator();
+    updateIndicator(bb);
   }
 
   function next() { show(current + 1); }
@@ -69,9 +69,17 @@
   }
 
   var indicator;
-  function updateIndicator() {
+  function updateIndicator(bb) {
     if (!indicator) return;
     indicator.textContent = (current + 1) + " / " + slides.length;
+    // The viewBox is the current slide's absolute page box, so anchor the
+    // indicator to that box's origin instead of the document origin.
+    if (bb) {
+      indicator.setAttribute("x", (bb[0] + 0.01 * bb[2]).toString());
+      indicator.setAttribute("y", (bb[1] + 0.03 * bb[3]).toString());
+      var fs = Math.max(8, 0.018 * bb[3]);
+      indicator.setAttribute("font-size", fs.toString());
+    }
   }
 
   function buildIndicator() {

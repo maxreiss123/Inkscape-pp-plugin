@@ -23,6 +23,25 @@ def embed_asset(name):
         return fh.read()
 
 
+def _render_web_regions(layer):
+    """Replace each web-content region's placeholder text with a live iframe/HTML.
+
+    The dashed bounds rectangle is kept as a frame; a <foreignObject> with the
+    actual web content is appended so it renders in the browser.
+    """
+    from . import webcontent
+
+    for group, bounds in list(webcontent.iter_regions(layer)):
+        fo = webcontent.build_foreign_object(group, bounds)
+        if fo is None:
+            continue
+        # Drop the canvas-only prompt label so it does not cover the content.
+        for child in list(group):
+            if child.get(C.cn("prompt")) == "true":
+                group.remove(child)
+        group.append(fo)
+
+
 def build(pres, transition="fade", loop=False, start=0):
     """Return a deep-copied lxml tree ready to write as a standalone SVG."""
     from .model import Presentation
@@ -42,6 +61,7 @@ def build(pres, transition="fade", loop=False, start=0):
         # Make sure the authoring "hidden layer" display state does not hide it.
         if "display" in layer.style:
             layer.style["display"] = "inline"
+        _render_web_regions(layer)
 
     # Remove master layers and namedview (authoring-only).
     for el in list(root):

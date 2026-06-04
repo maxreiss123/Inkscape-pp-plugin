@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Add Web Content</name>
+  <id>org.inkscape.pp.webcontent</id>
+  <param name="url" type="string" gui-text="URL (embedded as iframe)"></param>
+  <param name="html" type="string" gui-text="…or inline HTML/JS"></param>
+  <param name="label" type="string" gui-text="Label (canvas only)"></param>
+  <param name="replace_selection" type="bool" gui-text="Replace selected rectangle">true</param>
+  <param name="info" type="description">Draw a rectangle, select it, then run this to place live web content there in the interactive export. Leave selection empty for a centred region.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_webcontent.py</command>
+  </script>
+</inkscape-extension>

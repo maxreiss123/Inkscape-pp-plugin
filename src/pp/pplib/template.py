@@ -104,7 +104,7 @@ def apply_master(pres, slide, definition, overwrite_user=False):
     refreshes auto-fields.
     """
     layer = slide.layer
-    bbox = slide.bbox
+    bbox = slide.content_bbox  # author in local coords; layer transform places it
     slide.master_id = definition.get("id", "master-default")
 
     _clear_managed(layer)

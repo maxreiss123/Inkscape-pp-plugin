@@ -63,3 +63,28 @@ def test_sync_drops_orphan_pages(presentation):
     pages.sync(pres)
     assert pres.slide_count() == 2
     assert len(pages.iter_pages(pres)) == 2
+
+
+def test_delete_slide(presentation):
+    pres = presentation
+    middle = pres.slides()[1]
+    middle_id = middle.slide_id
+    pages.delete_slide(pres, middle)
+    assert pres.slide_count() == 2
+    assert len(pages.iter_pages(pres)) == 2
+    assert all(s.slide_id != middle_id for s in pres.slides())
+    assert [s.index for s in pres.slides()] == [0, 1]
+
+
+def test_content_authored_in_local_coords(presentation):
+    """Every slide's title placeholder must render within its own page bbox."""
+    pres = presentation
+    for slide in pres.slides():
+        px, py, pw, ph = slide.bbox
+        title = slide.placeholder("title")
+        rect = list(title)[0]
+        local_x = float(rect.get("x"))
+        eff_x = slide.layer.transform.apply_to_point((local_x, 0))[0]
+        assert px <= eff_x <= px + pw, (
+            "slide %d content off page: %s not in [%s, %s]"
+            % (slide.index, eff_x, px, px + pw))

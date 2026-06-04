@@ -52,9 +52,21 @@ class Slide:
 
     @property
     def bbox(self):
+        """Absolute page bounding box on the canvas (x, y, w, h)."""
         page = self.page
         if page is not None:
             return S.page_bbox(page)
+        return (0.0, 0.0, self.pres.width, self.pres.height)
+
+    @property
+    def content_bbox(self):
+        """Local authoring box (0, 0, w, h).
+
+        Slide content is authored in local coordinates; the slide layer carries a
+        translate transform that places it on its page. Authoring in local coords
+        keeps duplicate/reorder cheap (only the transform moves) and avoids
+        double-offsetting content off its page.
+        """
         return (0.0, 0.0, self.pres.width, self.pres.height)
 
     def placeholders(self):
@@ -154,17 +166,32 @@ class Presentation:
                 return s
         return None
 
-    def active_slide(self):
-        """Best-effort current slide via the namedview current-layer attr."""
+    def _enclosing_slide(self, el):
         from inkex import Layer
+        while el is not None:
+            if isinstance(el, Layer) and S.get_pp(el, C.A_ROLE) == C.Role.SLIDE:
+                return Slide(self, el)
+            el = el.getparent()
+        return None
+
+    def active_slide(self):
+        """Best-effort current slide.
+
+        Resolution order: (1) the slide layer enclosing the current selection,
+        (2) the namedview current-layer, (3) the first slide.
+        """
+        try:
+            for el in self.svg.selection.values():
+                slide = self._enclosing_slide(el)
+                if slide is not None:
+                    return slide
+        except Exception:
+            pass
         cur = self.namedview.get(C.ink("current-layer"))
         if cur:
-            el = self.svg.getElementById(cur)
-            # Walk up to the enclosing slide layer.
-            while el is not None:
-                if isinstance(el, Layer) and S.get_pp(el, C.A_ROLE) == C.Role.SLIDE:
-                    return Slide(self, el)
-                el = el.getparent()
+            slide = self._enclosing_slide(self.svg.getElementById(cur))
+            if slide is not None:
+                return slide
         slides = self.slides()
         return slides[0] if slides else None
 

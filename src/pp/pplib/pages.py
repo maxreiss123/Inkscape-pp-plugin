@@ -95,17 +95,17 @@ def add_slide(pres, layout_key=C.LayoutKey.BLANK, position=None, apply_master=Tr
     # Shift indices to open a slot at `position`, then place the new slide.
     _open_slot(pres, slide, position)
 
-    # Placeholders sit relative to the page bbox.
-    page = page_for_slide(pres, slide)
-    bbox = S.page_bbox(page)
+    # Placeholders are authored in local coordinates (0,0,w,h); the slide layer's
+    # transform (set by relayout_pages) translates them onto the page.
     family = _font_family(pres)
-    L.instantiate(layer, layout_key, bbox, font_family=family)
+    L.instantiate(layer, layout_key, slide.content_bbox, font_family=family)
 
     if apply_master:
         from . import template
-        master = pres.master_by_id(None)
-        if master is not None:
-            template.apply_master(pres, slide, master.definition)
+        # Always ensure a master exists so a new slide reliably gets its
+        # background and number/footer fields (never a blank white page).
+        master = template.ensure_master(pres)
+        template.apply_master(pres, slide, master.definition)
 
     relayout_pages(pres)
     return slide
@@ -140,6 +140,18 @@ def duplicate_slide(pres, source):
     _open_slot(pres, clone, source.index + 1)
     relayout_pages(pres)
     return clone
+
+
+# ---------------------------------------------------------------------------
+# Deletion
+# ---------------------------------------------------------------------------
+def delete_slide(pres, slide):
+    """Remove a slide's layer and its page, then re-tile the remainder."""
+    page = page_for_slide(pres, slide)
+    if page is not None:
+        page.getparent().remove(page)
+    slide.layer.getparent().remove(slide.layer)
+    relayout_pages(pres)
 
 
 def _reset_ids(svg, root):
