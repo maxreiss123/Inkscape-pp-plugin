@@ -14,6 +14,18 @@ from pplib import webcontent
 from pplib.model import Presentation
 
 
+def _unescape(text):
+    """Decode the escapes Inkscape's multiline/string fields pass (\\n, \\t).
+
+    A multiline field encodes line breaks as the two characters backslash-n;
+    decode those (and tabs / carriage returns) back into real whitespace.
+    """
+    return (text.replace("\\r\\n", "\n")
+                .replace("\\n", "\n")
+                .replace("\\t", "\t")
+                .replace("\\r", "\n"))
+
+
 class AddContent(inkex.EffectExtension):
     def add_arguments(self, pars):
         pars.add_argument("--kind", default=C.ContentKind.MERMAID)
@@ -38,8 +50,7 @@ class AddContent(inkex.EffectExtension):
                 inkex.errormsg("Could not read source file: %s" % exc)
                 return None
         if self.options.source:
-            # Allow literal "\n" in the single-line dialog field.
-            return self.options.source.replace("\\n", "\n")
+            return _unescape(self.options.source)
         if text_elements:
             return "\n".join(S.text_content(t) for t in text_elements)
         return ""

@@ -9,7 +9,7 @@
     <option value="web">Web page (URL)</option>
     <option value="html">Inline HTML/JS</option>
   </param>
-  <param name="source" type="string" gui-text="Source / URL (use \n for newlines)"></param>
+  <param name="source" type="string" appearance="multiline" gui-text="Paste Markdown / code / Mermaid (or a URL) here"></param>
   <param name="source_file" type="path" mode="file" gui-text="…or load source from file"></param>
   <param name="lang" type="string" gui-text="Code language (for 'Source code')">python</param>
   <param name="label" type="string" gui-text="Label (canvas only)"></param>

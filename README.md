@@ -29,8 +29,9 @@ All commands live under **Extensions → Presentation**.
 - **Rich content regions** — *Add Content* renders **Markdown**, a
   syntax-highlighted **source-code** snippet, or a **Mermaid** diagram into
   native SVG inside a region you draw, so it shows on the slide itself and in PDF
-  export (no internet needed). Provide the source inline, from a file, or by
-  selecting a text object. *Markdown* supports headings, lists, block-quotes,
+  export (no internet needed). Paste the source into the dialog's multi-line
+  text box, load it from a file, or select a text object on the canvas to use as
+  the source. *Markdown* supports headings, lists, block-quotes,
   rules, tables, fenced code and inline bold/italic/code; *code* is highlighted
   with Pygments when available. *Mermaid* renders to SVG when the `mmdc`
   (mermaid-cli) tool is installed, otherwise it falls back to a code block.
