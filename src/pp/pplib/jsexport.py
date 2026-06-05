@@ -62,7 +62,10 @@ def build(pres, transition="fade", loop=False, start=0):
     work = Presentation(root)
     slides = work.slides()
 
+    from . import notes as notes_mod
+
     first_bbox = None
+    notes_list = []
     for slide in slides:
         layer = slide.layer
         bbox = slide.bbox
@@ -70,11 +73,17 @@ def build(pres, transition="fade", loop=False, start=0):
             first_bbox = bbox
         layer.set("data-pp-slide", str(slide.index))
         layer.set("data-pp-bbox", "%s %s %s %s" % bbox)
+        # Stable id so the presenter view can reference slides via <use>.
+        layer.set("id", "pp-slide-%d" % slide.index)
+        notes_list.append(notes_mod.get_notes(slide))
         # Make sure the authoring "hidden layer" display state does not hide it.
         if "display" in layer.style:
             layer.style["display"] = "inline"
         _materialize_regions(layer)
         _export_effects(layer)
+
+    # Authoring-only speaker notes go into PP_CONFIG, not the visible tree.
+    notes_mod.strip_notes_tree(root)
 
     # Strip on-canvas build-order badges (authoring aid only).
     from . import anim
@@ -101,7 +110,7 @@ def build(pres, transition="fade", loop=False, start=0):
     style.text = ET.CDATA("\n" + embed_asset("player.css") + "\n")
 
     config = {"count": len(slides), "transition": transition,
-              "loop": bool(loop), "start": int(start)}
+              "loop": bool(loop), "start": int(start), "notes": notes_list}
     cfg_script = ET.SubElement(root, "{%s}script" % SVG)
     cfg_script.set("type", "application/ecmascript")
     cfg_script.text = ET.CDATA("\nwindow.PP_CONFIG = %s;\n" % json.dumps(config))

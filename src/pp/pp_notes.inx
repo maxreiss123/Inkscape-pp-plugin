@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Speaker Notes</name>
+  <id>org.inkscape.pp.notes</id>
+  <param name="action" type="optiongroup" appearance="combo" gui-text="Action">
+    <option value="set">Set notes for current slide</option>
+    <option value="clear">Clear notes for current slide</option>
+  </param>
+  <param name="text" type="string" appearance="multiline" gui-text="Notes (paste here)"></param>
+  <param name="from_selection" type="bool" gui-text="Use selected text object as notes">false</param>
+  <param name="info" type="description">Notes show in the presenter view of the browser preview / interactive export (press P), never on the slide.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_notes.py</command>
+  </script>
+</inkscape-extension>

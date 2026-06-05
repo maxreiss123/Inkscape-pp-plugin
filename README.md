@@ -53,11 +53,22 @@ All commands live under **Extensions → Presentation**.
   LibreOffice `.odp` file and applies its theme essentials (slide size/aspect,
   background, accent colour, body font). Placeholder geometry and images are not
   imported.
+- **Speaker notes + presenter view** — *Speaker Notes* sets per-slide notes
+  (paste, or from a selected text object). In the browser preview / interactive
+  export press **P** to open a **presenter window** (current + next slide, notes,
+  elapsed timer and clock; the two windows stay in sync); the audience window never
+  shows notes. Press **S** for a single-screen notes+timer overlay. Notes never
+  appear on the slide.
 - **Position helpers** — align/distribute selected objects to the page, page
   margins or each other, and drop margin / center / title-safe guides.
 - **Export to PDF** — one PDF page per slide (uses Inkscape's own exporter).
 - **Export interactive SVG** — a single self-contained `.svg` that plays in any
-  modern browser (keyboard / click navigation, fade / slide transitions).
+  modern browser (keyboard / click navigation, build animations, presenter view).
+- **Export to HTML** — a self-contained `.html`: *vector* (selectable text,
+  interactive, optional font embedding via fontTools) or *raster* (one image per
+  slide for pixel-identical display anywhere; needs cairosvg).
+- **Export to PowerPoint (.pptx)** — each slide as a full-slide image plus speaker
+  notes, so it opens with full fidelity in PowerPoint / LibreOffice (needs cairosvg).
 - **Preview in browser** — opens the interactive build in your default browser
   as a quick presentation mode.
 
@@ -108,8 +119,8 @@ make package   # -> dist/inkscape-pp-plugin.zip
 ### Interactive playback keys
 
 `→` / `Space` / `PageDown` next · `←` / `PageUp` previous · `Home` / `End`
-first / last · `F` fullscreen · `Esc` exit fullscreen · click left third =
-previous, elsewhere = next.
+first / last · `F` fullscreen · `P` presenter window · `S` notes overlay ·
+`Esc` exit fullscreen · click left third = previous, elsewhere = next.
 
 ## How it works
 
@@ -123,7 +134,8 @@ save/reload and stays invisible to the renderer.
 ## Development
 
 ```bash
-pip install -e ".[dev]"   # pytest + ruff (inkex is provided by Inkscape)
+pip install -e ".[dev]"      # pytest + ruff (inkex is provided by Inkscape)
+pip install -e ".[export]"   # optional: cairosvg (PPTX / raster HTML), fonttools
 make test                 # run the suite
 make lint                 # ruff
 ```

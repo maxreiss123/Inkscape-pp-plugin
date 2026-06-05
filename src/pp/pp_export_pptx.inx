@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Export to PowerPoint (.pptx)</name>
+  <id>org.inkscape.pp.export_pptx</id>
+  <param name="out_path" type="path" mode="file_new" filetypes="pptx" gui-text="Output file (.pptx)"></param>
+  <param name="scale" type="float" min="1" max="6" gui-text="Image scale (quality)">2</param>
+  <param name="include_notes" type="bool" gui-text="Include speaker notes">true</param>
+  <param name="info" type="description">Each slide is exported as a full-slide image so it looks exactly as authored. Requires the 'cairosvg' Python package.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_export_pptx.py</command>
+  </script>
+</inkscape-extension>

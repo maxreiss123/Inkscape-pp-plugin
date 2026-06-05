@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Export to HTML</name>
+  <id>org.inkscape.pp.export_html</id>
+  <param name="out_path" type="path" mode="file_new" filetypes="html" gui-text="Output file (.html)"></param>
+  <param name="mode" type="optiongroup" appearance="combo" gui-text="Mode">
+    <option value="vector">Vector (selectable text, interactive)</option>
+    <option value="raster">Raster (one image per slide, exact fidelity)</option>
+  </param>
+  <param name="transition" type="optiongroup" appearance="combo" gui-text="Transition (vector)">
+    <option value="none">None</option>
+    <option value="fade">Fade</option>
+    <option value="slide-anim">Slide</option>
+  </param>
+  <param name="embed_fonts" type="bool" gui-text="Embed fonts (vector; needs fontTools)">false</param>
+  <param name="scale" type="float" min="1" max="6" gui-text="Image scale (raster)">2</param>
+  <param name="loop" type="bool" gui-text="Loop at end">false</param>
+  <param name="title" type="string" gui-text="Title">Presentation</param>
+  <param name="info" type="description">Vector keeps text selectable and supports the presenter view (press P). Raster renders each slide to an image for identical display anywhere (needs cairosvg).</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_export_html.py</command>
+  </script>
+</inkscape-extension>
