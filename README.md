@@ -53,6 +53,11 @@ All commands live under **Extensions → Presentation**.
   LibreOffice `.odp` file and applies its theme essentials (slide size/aspect,
   background, accent colour, body font). Placeholder geometry and images are not
   imported.
+- **Generate deck from outline** — *Generate Deck from Outline* turns a Markdown
+  outline into slides: `# Title` → a title slide, `## Heading` → a content slide,
+  `- bullet` → body bullets, fenced code / ```` ```mermaid ```` blocks → rendered
+  content regions, `---` → a slide break. Paste it or load a file; optionally
+  replace the existing slides.
 - **Speaker notes + presenter view** — *Speaker Notes* sets per-slide notes
   (paste, or from a selected text object). In the browser preview / interactive
   export press **P** to open a **presenter window** (current + next slide, notes,

@@ -44,8 +44,10 @@ def slide_svg_tree(pres, slide):
             s.layer.getparent().remove(s.layer)
 
     # Remove authoring-only content.
+    from . import placeholders as ph
     anim.strip_badges_tree(root)
     notes_mod.strip_notes_tree(root)
+    ph.strip_prompts(root)
     for el in list(root):
         if S.get_pp(el, C.A_ROLE) == C.Role.MASTER:
             root.remove(el)

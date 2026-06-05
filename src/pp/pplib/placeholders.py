@@ -67,6 +67,20 @@ def is_prompt(group):
     return text is not None and text.get(C.cn("prompt")) == "true"
 
 
+def strip_prompts(root):
+    """Remove unfilled placeholder prompt text from an export tree.
+
+    Prompts ("Click to add title", etc.) are an authoring aid; like PowerPoint,
+    empty placeholders should not appear in the rendered output.
+    """
+    key = C.cn("prompt")
+    for el in list(root.iter()):
+        if el.get(key) == "true":
+            parent = el.getparent()
+            if parent is not None:
+                parent.remove(el)
+
+
 def is_user_edited(group):
     return S.get_pp(group, C.A_USER_EDITED) == "true"
 

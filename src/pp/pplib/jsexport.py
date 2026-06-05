@@ -85,6 +85,10 @@ def build(pres, transition="fade", loop=False, start=0):
     # Authoring-only speaker notes go into PP_CONFIG, not the visible tree.
     notes_mod.strip_notes_tree(root)
 
+    # Drop unfilled placeholder prompts ("Click to add ...").
+    from . import placeholders as _ph
+    _ph.strip_prompts(root)
+
     # Strip on-canvas build-order badges (authoring aid only).
     from . import anim
     anim.strip_badges_tree(root)

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Generate Deck from Outline</name>
+  <id>org.inkscape.pp.outline</id>
+  <param name="text" type="string" appearance="multiline" gui-text="Outline (Markdown) — paste here"></param>
+  <param name="file" type="path" mode="file" gui-text="…or load outline from file"></param>
+  <param name="default_layout" type="optiongroup" appearance="combo" gui-text="Default layout">
+    <option value="title_content">Title and Content</option>
+    <option value="blank">Blank</option>
+  </param>
+  <param name="apply_master" type="bool" gui-text="Apply master to new slides">true</param>
+  <param name="replace" type="bool" gui-text="Replace existing slides">false</param>
+  <param name="info" type="description"># Title → title slide · ## Heading → content slide · - bullet → body · ```code / ```mermaid → rendered region · --- → slide break.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_outline.py</command>
+  </script>
+</inkscape-extension>
