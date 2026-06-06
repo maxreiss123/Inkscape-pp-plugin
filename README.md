@@ -127,6 +127,22 @@ make package   # -> dist/inkscape-pp-plugin.zip
 first / last · `F` fullscreen · `P` presenter window · `S` notes overlay ·
 `Esc` exit fullscreen · click left third = previous, elsewhere = next.
 
+## Quick access (button panel & shortcuts)
+
+Inkscape extensions can't add a *docked* side panel (that's built into Inkscape's
+core), but **Extensions → Presentation → Presentation Panel** opens a small
+always-on-top window of **buttons** for the common actions — new/duplicate/delete/
+move slide, apply master, update fields, render content, toggle badges, generate
+from outline, preview, and export HTML/PPTX — so you don't scroll the menu. Edits
+are applied when you close the panel; selection-based commands (Animate, Align,
+Add Content, Notes) stay on the menu because the canvas is busy while the panel is
+open. (Needs a GTK/PyGObject-enabled Inkscape, which most Linux/Windows builds
+have.)
+
+For the fastest workflow, assign **keyboard shortcuts** to the commands you use
+most via Edit → Preferences → Interface → Keyboard (search "Presentation"), or run
+them from Inkscape's command palette (`?`).
+
 ## How it works
 
 Each slide is stored as **both** a native `inkscape:page` (which drives PDF
