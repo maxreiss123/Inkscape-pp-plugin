@@ -127,21 +127,19 @@ make package   # -> dist/inkscape-pp-plugin.zip
 first / last · `F` fullscreen · `P` presenter window · `S` notes overlay ·
 `Esc` exit fullscreen · click left third = previous, elsewhere = next.
 
-## Quick access (button panel & shortcuts)
+## Quick access (one-click commands & shortcuts)
 
-Inkscape extensions can't add a *docked* side panel (that's built into Inkscape's
-core), but **Extensions → Presentation → Presentation Panel** opens a small
-always-on-top window of **buttons** for the common actions — new/duplicate/delete/
-move slide, apply master, update fields, render content, toggle badges, generate
-from outline, preview, and export HTML/PPTX — so you don't scroll the menu. Edits
-are applied when you close the panel; selection-based commands (Animate, Align,
-Add Content, Notes) stay on the menu because the canvas is busy while the panel is
-open. (Needs a GTK/PyGObject-enabled Inkscape, which most Linux/Windows builds
-have.)
+Inkscape extensions run as a blocking subprocess, so a *persistent* panel isn't
+possible (it would freeze Inkscape) and a *docked* panel is built into Inkscape's
+core. Instead, the most-used actions have **one-click "Quick" commands** under
+**Extensions → Presentation → Quick** — New Slide, Duplicate, Delete, Move
+earlier/later, Update fields, Render content, Toggle badges, Apply master, and
+Preview. They run instantly with **no dialog**.
 
-For the fastest workflow, assign **keyboard shortcuts** to the commands you use
-most via Edit → Preferences → Interface → Keyboard (search "Presentation"), or run
-them from Inkscape's command palette (`?`).
+For zero menu-digging, assign each a **keyboard shortcut**: Edit → Preferences →
+Interface → Keyboard, search "Quick" (or the command name), and bind a key — then
+e.g. one keypress adds a slide, another previews. You can also run any command
+from Inkscape's command palette (`?`).
 
 ## How it works
 

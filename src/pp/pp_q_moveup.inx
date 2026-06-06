@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Move Slide Earlier (Quick)</name>
+  <id>org.inkscape.pp.pp_q_moveup</id>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation">
+        <submenu name="Quick (assign shortcuts)"/>
+      </submenu>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_q_moveup.py</command>
+  </script>
+</inkscape-extension>
