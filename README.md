@@ -81,6 +81,24 @@ All commands live under **Extensions → Presentation**.
 
 Requirements: Inkscape 1.2 or newer (the native multi-page Page API is required).
 
+### Windows (handy installer)
+
+Download/clone the project, then in the `install\` folder:
+
+- **Double-click `install-windows.bat`** — copies the plugin into
+  `%APPDATA%\inkscape\extensions\pp`. Restart Inkscape.
+- To also enable PowerPoint / HTML export and font embedding, run in PowerShell
+  from the same folder:
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File Install-Windows.ps1 -WithExtras
+  ```
+
+  (installs `cairosvg` + `fonttools` into Inkscape's Python). Uninstall with
+  `uninstall-windows.bat` or `Install-Windows.ps1 -Uninstall`.
+
+### Linux / macOS
+
 ```bash
 # Copy into your Inkscape user extensions directory
 make install
