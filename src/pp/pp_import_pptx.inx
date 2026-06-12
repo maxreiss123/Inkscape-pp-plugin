@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Import PPTX Presentation</name>
+  <id>org.inkscape.pp.import_pptx</id>
+  <param name="file" type="path" mode="file" filetypes="pptx,pptm,ppsx,potx" gui-text="PowerPoint presentation (.pptx / .pptm / .ppsx)"></param>
+  <param name="replace" type="bool" gui-text="Replace the current slides (off = append)">true</param>
+  <param name="import_notes" type="bool" gui-text="Import speaker notes">true</param>
+  <param name="info" type="description">Imports every slide of a PowerPoint file: title/subtitle/bullet text, free text boxes, pictures and shapes, and speaker notes, then applies the file's theme (size, background, fonts, colours). For a template's look only, use Slide Master &gt; Import Master.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_import_pptx.py</command>
+  </script>
+</inkscape-extension>

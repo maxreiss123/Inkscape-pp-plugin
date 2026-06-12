@@ -61,14 +61,25 @@ All commands live under **Extensions → Presentation**.
   (stripped from the PDF and interactive exports); toggle them with *Add
   Animation → Show / Hide build-order badges*. Use *Add Animation → Remove* to
   clear an object's animation.
-- **Import a master** — *Import Master* reads a PowerPoint presentation or
-  template (`.pptx` / `.potx`) or a LibreOffice file (`.odp` / `.otp`) and
-  applies its theme: slide size/aspect, the slide master's background (solid
-  colour, background **picture**, or `bgRef`), fonts, accent, and title/body
-  sizes & colours. The master's **decorative vector shapes** (colour bands,
-  rules, accent blocks, logos) are translated to SVG and reproduced behind every
-  slide. Existing slides are restyled (content preserved) so the import is
-  immediately visible, and a summary dialog lists everything that was imported.
+- **Import a whole PowerPoint deck** — *Import PPTX Presentation*
+  (**Extensions → Presentation**) reads an entire `.pptx` / `.pptm` / `.ppsx`
+  file and rebuilds **every slide** as a native slide: the title / subtitle /
+  bullet text (mapped onto editable placeholders), free-floating text boxes,
+  pictures and shapes, and the **speaker notes**. The file's theme (slide
+  size/aspect, master background, fonts and colours) is applied on top, so the
+  imported deck looks right immediately. Choose *Replace the current slides* or
+  *append*, and toggle note import. A summary lists how many slides, pictures,
+  text boxes and notes were imported.
+- **Import a master** — *Import Master* (under **Slide Master**) reads a
+  PowerPoint presentation or template (`.pptx` / `.potx`) or a LibreOffice file
+  (`.odp` / `.otp`) and applies just its **theme**: slide size/aspect, the slide
+  master's background (solid colour, background **picture**, or `bgRef`), fonts,
+  accent, and title/body sizes & colours. The master's **decorative vector
+  shapes** (colour bands, rules, accent blocks, logos) are translated to SVG and
+  reproduced behind every slide. Existing slides are restyled (content
+  preserved) so the import is immediately visible, and a summary dialog lists
+  everything that was imported. Use this when you only want a template's *look*;
+  use *Import PPTX Presentation* when you want its *slides too*.
 - **Generate deck from outline** — *Generate Deck from Outline* turns a Markdown
   outline into slides: `# Title` → a title slide, `## Heading` → a content slide,
   `- bullet` → body bullets, fenced code / ```` ```mermaid ```` blocks → rendered
