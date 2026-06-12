@@ -154,10 +154,16 @@ def _fill(shape, resolve_color):
         gf = sppr.find(_q(A, "gradFill"))
         if gf is not None:
             return resolve_color(gf) or "none", _alpha(gf)
+        if sppr.find(_q(A, "blipFill")) is not None or sppr.find(_q(A, "pattFill")) is not None:
+            # Picture / pattern fill -- handled elsewhere (or left unfilled here).
+            return "none", None
     style = shape.find(_q(P, "style"))
     if style is not None:
         fr = style.find(_q(A, "fillRef"))
-        if fr is not None:
+        # idx="0" is the OOXML sentinel for *no fill*; real text boxes carry
+        # <a:fillRef idx="0"> with a colour that must NOT be painted, otherwise
+        # the box becomes an opaque rectangle hiding everything behind it.
+        if fr is not None and fr.get("idx") not in (None, "0"):
             return resolve_color(fr) or "none", _alpha(fr)
     return "none", None
 
@@ -182,7 +188,7 @@ def _stroke(shape, resolve_color, scale):
     style = shape.find(_q(P, "style"))
     if style is not None:
         lr = style.find(_q(A, "lnRef"))
-        if lr is not None:
+        if lr is not None and lr.get("idx") not in (None, "0"):
             color = resolve_color(lr)
             if color:
                 return color, max(1.0, scale * 9525), _alpha(lr)
@@ -255,6 +261,40 @@ def _maybe_rotate(el, xfrm, cx, cy):
     rot = _num(xfrm, "rot")
     if rot:
         el.set("transform", "rotate(%g %g %g)" % (rot / 60000.0, cx, cy))
+
+
+def image_at(zf, part_name, blip_holder, rect, rel_target):
+    """Build an SVG <image> for a blip-bearing element at an explicit rect.
+
+    Used for placeholder pictures (which inherit their geometry) and shapes whose
+    fill is a picture (<a:blipFill>), neither of which carry a usable own xfrm.
+    """
+    import base64
+    import posixpath
+
+    blip = blip_holder.find(".//" + _q(A, "blip"))
+    if blip is None:
+        return None
+    embed = blip.get(_q(R, "embed")) or blip.get("embed")
+    target = rel_target(zf, part_name, embed) if embed else None
+    if not target:
+        return None
+    try:
+        data = zf.read(target)
+    except KeyError:
+        return None
+    ext = posixpath.splitext(target)[1].lstrip(".").lower() or "png"
+    mime = "jpeg" if ext in ("jpg", "jpeg") else ext
+    x, y, w, h = rect
+    img = ET.Element(_q(SVG, "image"))
+    img.set("x", str(round(x, 2)))
+    img.set("y", str(round(y, 2)))
+    img.set("width", str(round(w, 2)))
+    img.set("height", str(round(h, 2)))
+    href = "data:image/%s;base64,%s" % (mime, base64.b64encode(data).decode("ascii"))
+    img.set(_q(XLINK, "href"), href)
+    img.set("href", href)
+    return img
 
 
 def _picture(zf, part_name, pic, tf, rel_target):

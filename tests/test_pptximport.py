@@ -310,3 +310,41 @@ def test_body_font_size_inherited_from_master(tmp_path):
     # 28pt master body style -> 56px (no run-level size on the slide).
     assert body.style["font-size"] == "56px"
 
+
+def _picfill_pptx(path):
+    """A slide whose background is a shape with a picture fill (blipFill)."""
+    P, A, R = pptximport._P, pptximport._A, pptximport._R
+    pres = ('<p:presentation xmlns:p="%s" xmlns:r="%s">'
+            '<p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>'
+            '<p:sldSz cx="12192000" cy="6858000"/></p:presentation>' % (P, R))
+    pres_rels = ('<Relationships xmlns="%s"><Relationship Id="rId1" '
+                 'Type="%s/slide" Target="slides/slide1.xml"/></Relationships>'
+                 % (_CT, _RT))
+    slide = ('<p:sld xmlns:p="%s" xmlns:a="%s" xmlns:r="%s"><p:cSld><p:spTree>'
+             '<p:sp><p:nvSpPr><p:cNvPr id="2" name="bg"/><p:cNvSpPr/><p:nvPr/>'
+             '</p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="0"/>'
+             '<a:ext cx="12192000" cy="6858000"/></a:xfrm>'
+             '<a:prstGeom prst="rect"/><a:blipFill><a:blip r:embed="rId1"/>'
+             "<a:stretch><a:fillRect/></a:stretch></a:blipFill></p:spPr></p:sp>"
+             "</p:spTree></p:cSld></p:sld>" % (P, A, R))
+    slide_rels = ('<Relationships xmlns="%s"><Relationship Id="rId1" '
+                  'Type="%s/image" Target="../media/image1.png"/></Relationships>'
+                  % (_CT, _RT))
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("ppt/presentation.xml", pres)
+        zf.writestr("ppt/_rels/presentation.xml.rels", pres_rels)
+        zf.writestr("ppt/slides/slide1.xml", slide)
+        zf.writestr("ppt/slides/_rels/slide1.xml.rels", slide_rels)
+        zf.writestr("ppt/media/image1.png", _PNG)
+
+
+def test_shape_picture_fill_becomes_image(tmp_path):
+    path = str(tmp_path / "picfill.pptx")
+    _picfill_pptx(path)
+    pres = _blank_pres()
+    pptximport.import_presentation(pres, path)
+    imgs = [e for e in pres.slides()[0].layer.iter() if e.tag.endswith("}image")]
+    assert imgs, "picture-filled shape was not rendered as an image"
+    # Scaled to the slide width (12192000 EMU -> 1920px), not skipped/native size.
+    assert abs(float(imgs[0].get("width")) - 1920) < 2
+

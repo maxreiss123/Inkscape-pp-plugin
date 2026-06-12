@@ -338,28 +338,40 @@ def _render_slide(zf, slide_part, layout_part, master_part, scale, scheme,
                 continue  # footer / number / date -> our own fields
             txbody = child.find(_q(_P, "txBody"))
             has_text = txbody is not None and _txbody_lines(txbody)
-            # A non-placeholder shape may have BOTH a fill/outline and a text
-            # label -- draw the shape first, then its text on top. Placeholders
-            # carry no fill, so for them we render only the text.
-            if ph is None:
+            geom = _resolve_ph(child, layout_map, master_map, w, h, scale)
+
+            # 1. The shape body: a picture fill (full-bleed background etc.), a
+            #    solid/gradient auto-shape, else nothing for an empty placeholder.
+            sppr = child.find(_q(_P, "spPr"))
+            blipfill = sppr.find(_q(_A, "blipFill")) if sppr is not None else None
+            if blipfill is not None:
+                el = ooxml_shapes.image_at(zf, slide_part, blipfill, geom[0],
+                                           mastersimport._rel_target)
+                if el is not None:
+                    out.append(el)
+                    shapes += 1
+            elif ph is None or not has_text:
                 el = shape_of(child)
                 if el is not None:
                     out.append(el)
                     shapes += 1
+            # 2. The text label on top (placeholders or labelled shapes).
             if has_text:
-                geom, algn, anchor = _resolve_ph(
-                    child, layout_map, master_map, w, h, scale)
-                el = _render_text(child, geom, scheme, family, defn,
-                                  algn, anchor)
+                el = _render_text(child, geom[0], scheme, family, defn,
+                                  geom[1], geom[2])
                 if el is not None:
                     out.append(el)
                     texts += 1
-            elif ph is not None:
-                el = shape_of(child)
-                if el is not None:
-                    out.append(el)
-                    shapes += 1
-        elif tag in ("pic", "grpSp", "cxnSp"):
+        elif tag == "pic":
+            el = shape_of(child)
+            if el is None:  # placeholder picture: geometry is inherited
+                geom = _resolve_ph(child, layout_map, master_map, w, h, scale)
+                el = ooxml_shapes.image_at(zf, slide_part, child, geom[0],
+                                           mastersimport._rel_target)
+            if el is not None:
+                out.append(el)
+                shapes += 1
+        elif tag in ("grpSp", "cxnSp"):
             el = shape_of(child)
             if el is not None:
                 out.append(el)

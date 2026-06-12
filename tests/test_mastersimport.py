@@ -296,6 +296,31 @@ def test_shape_alpha_becomes_fill_opacity():
     assert "fill-opacity:0.4" in style
 
 
+def test_fillref_idx0_is_no_fill():
+    """A text box's <a:fillRef idx="0"> must not paint an opaque rectangle."""
+    import lxml.etree as ET
+    from pplib import ooxml_shapes as OX
+    scheme = {"accent1": "#4472C4"}
+    sp = ET.fromstring(
+        '<p:sp xmlns:p="%s" xmlns:a="%s">'
+        '<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1000" cy="1000"/></a:xfrm>'
+        '<a:prstGeom prst="rect"/></p:spPr>'
+        '<p:style><a:lnRef idx="0"><a:schemeClr val="accent1"/></a:lnRef>'
+        '<a:fillRef idx="0"><a:schemeClr val="accent1"/></a:fillRef></p:style>'
+        "</p:sp>" % (P, A))
+    el = OX._shape(sp, (0, 0, 1.0), lambda e: mastersimport._resolve_color(e, scheme))
+    assert el is None  # no fill + no stroke -> nothing painted
+
+    sp2 = ET.fromstring(
+        '<p:sp xmlns:p="%s" xmlns:a="%s">'
+        '<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1000" cy="1000"/></a:xfrm>'
+        '<a:prstGeom prst="rect"/></p:spPr>'
+        '<p:style><a:fillRef idx="1"><a:schemeClr val="accent1"/></a:fillRef>'
+        "</p:style></p:sp>" % (P, A))
+    el2 = OX._shape(sp2, (0, 0, 1.0), lambda e: mastersimport._resolve_color(e, scheme))
+    assert el2 is not None and "fill:#4472C4" in el2.get("style")
+
+
 def test_apply_import_summary_is_detailed(presentation):
     path = _make_pptx(master=PPTX_MASTER)
     try:
