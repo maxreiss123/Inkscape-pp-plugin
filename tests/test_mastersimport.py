@@ -285,3 +285,45 @@ def test_apply_import_restyles_existing_text(presentation):
     assert text.style["font-size"] == "88px"
     assert text.style["fill"] == "#C0392B"
     assert "Hello" in S.text_content(text)  # content untouched
+
+
+def test_import_on_blank_doc_creates_styled_deck():
+    """Importing on a non-setup document auto-creates a deck and applies it."""
+    import importlib.util
+    import io
+
+    import inkex
+    from pplib.model import Presentation
+
+    handler_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "src", "pp", "pp_import_master.py")
+    spec = importlib.util.spec_from_file_location("pp_import_master", handler_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    potx = _make_pptx(master=PPTX_MASTER)  # navy bg master
+    blank = (b'<svg xmlns="http://www.w3.org/2000/svg" '
+             b'xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" '
+             b'xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.0.dtd" '
+             b'width="200" height="150" viewBox="0 0 200 150">'
+             b'<sodipodi:namedview id="nv"/></svg>')
+    fd, svgpath = tempfile.mkstemp(suffix=".svg")
+    os.write(fd, blank)
+    os.close(fd)
+    try:
+        ext = mod.ImportMaster()
+        ext.parse_arguments(["--file=" + potx, svgpath])
+        ext.document = inkex.load_svg(io.BytesIO(blank))
+        ext.original_document = ext.document
+        ext.svg = ext.document.getroot()
+        ext.svg.selection.set()
+        ext.effect()
+        pres = Presentation(ext.svg)
+        assert pres.is_initialized()
+        assert pres.slide_count() >= 1
+        defn = pres.master_by_id(None).definition
+        assert defn["bg_color"] == "#1F2933"
+    finally:
+        os.remove(potx)
+        os.remove(svgpath)

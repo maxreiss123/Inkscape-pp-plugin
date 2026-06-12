@@ -438,8 +438,9 @@ def apply_import(pres, path, resize=True, restyle=True):
             lines.append("   background: image from template")
             continue
         if key == "bg_shapes":
-            n = overrides[key].count("<ns0:") or overrides[key].count("<rect") \
-                + overrides[key].count("<ellipse") + overrides[key].count("<image")
+            n = sum(overrides[key].count("<" + t)
+                    + overrides[key].count(":" + t)
+                    for t in ("rect", "ellipse", "image", "line", "path"))
             lines.append("   master graphics: %d shapes" % max(1, n))
             continue
         value = overrides[key]
@@ -462,4 +463,13 @@ def apply_import(pres, path, resize=True, restyle=True):
     template.apply_to_all(pres, defn, restyle=restyle)
     n = pres.slide_count()
     lines.append("Applied to %d slide%s." % (n, "" if n == 1 else "s"))
+
+    has_visual = ("bg_image" in overrides or "bg_shapes" in overrides
+                  or overrides.get("bg_color", "#FFFFFF").upper() != "#FFFFFF")
+    if not has_visual:
+        lines.append(
+            "Note: no coloured/picture background or decoration could be read "
+            "from this template (its look may be built per-layout). Use "
+            "Slide Master > Edit Slide Master to set background, logo and "
+            "colours directly.")
     return "\n".join(lines)

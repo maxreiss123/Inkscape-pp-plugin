@@ -22,7 +22,9 @@ All commands live under **Extensions → Presentation**.
   *Edit Slide Master* (a tabbed dialog for background colour/image, logo +
   position/size, fonts, sizes, title/body/accent colours, and footer/number/date),
   *Apply / Refresh*, and *Import Master*. Images are embedded so they survive
-  save/reload and export.
+  save/reload and export. **Import Master** works on a blank document too — it
+  creates a starter deck from the template so you immediately see the result
+  (you don't have to run Setup first).
 - **Layouts with placeholders** — Title, Title + Content, Two Content and Blank.
   Placeholders ("Click to add title") are positioned automatically and scale to
   any slide size.
