@@ -202,6 +202,46 @@ def test_background_image_extracted_and_applied(presentation):
             "data:image/png;base64,")
 
 
+PPTX_MASTER_SHAPES = (
+    '<p:sldMaster xmlns:p="%s" xmlns:a="%s"><p:cSld><p:spTree>'
+    '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+    "<p:grpSpPr/>"
+    '<p:sp><p:nvSpPr><p:cNvPr id="2" name="band"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
+    '<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="12192000" cy="1219200"/></a:xfrm>'
+    '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+    '<a:solidFill><a:srgbClr val="0E2A47"/></a:solidFill></p:spPr></p:sp>'
+    '<p:sp><p:nvSpPr><p:cNvPr id="3" name="dot"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
+    '<p:spPr><a:xfrm><a:off x="10000000" y="5000000"/><a:ext cx="800000" cy="800000"/></a:xfrm>'
+    '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
+    '<a:solidFill><a:schemeClr val="accent1"/></a:solidFill></p:spPr></p:sp>'
+    "</p:spTree></p:cSld></p:sldMaster>" % (P, A)
+)
+
+
+def test_master_vector_shapes_imported_and_applied(presentation):
+    path = _make_pptx(master=PPTX_MASTER_SHAPES)
+    try:
+        overrides, _, _ = mastersimport.import_master(path)
+        assert "bg_shapes" in overrides
+        # Band rect (navy) + dot ellipse (accent1 resolved) translated to SVG.
+        assert "rect" in overrides["bg_shapes"]
+        assert "ellipse" in overrides["bg_shapes"]
+        assert "#0E2A47" in overrides["bg_shapes"]
+        assert "#4472C4" in overrides["bg_shapes"]  # schemeClr accent1
+        mastersimport.apply_import(presentation, path)
+    finally:
+        os.remove(path)
+    from pplib import constants as C
+    from pplib import svgutil as S
+    for slide in presentation.slides():
+        groups = [e for e in slide.layer
+                  if e.tag.endswith("}g")
+                  and S.get_pp(e, C.A_PH_ROLE) == C.PhRole.BACKGROUND]
+        assert groups, "master graphics group missing"
+        assert groups[0].findall(".//{http://www.w3.org/2000/svg}rect")
+        assert groups[0].findall(".//{http://www.w3.org/2000/svg}ellipse")
+
+
 def test_master_bgref_scheme_colour_resolves():
     path = _make_pptx(master=PPTX_MASTER_SCHEME_BG)
     try:

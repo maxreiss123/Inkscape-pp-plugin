@@ -66,6 +66,21 @@ def _bg_rect(bbox, color):
     return rect
 
 
+def _bg_shapes(definition):
+    """Parse the imported master's vector decoration into a managed group."""
+    raw = definition.get("bg_shapes")
+    if not raw:
+        return None
+    import lxml.etree as ET
+    try:
+        group = ET.fromstring(raw.encode("utf-8"))
+    except ET.XMLSyntaxError:
+        return None
+    S.set_pp(group, C.A_PH_ROLE, C.PhRole.BACKGROUND)
+    S.set_pp(group, C.A_MANAGED, "true")
+    return group
+
+
 def _bg_image(bbox, href):
     """Full-slide background picture imported from a template's master/layout."""
     from inkex import Image
@@ -183,6 +198,9 @@ def apply_master(pres, slide, definition, overwrite_user=False, restyle=False):
     managed = [_bg_rect(bbox, definition.get("bg_color", "#ffffff"))]
     if definition.get("bg_image"):
         managed.append(_bg_image(bbox, definition["bg_image"]))
+    shapes = _bg_shapes(definition)
+    if shapes is not None:
+        managed.append(shapes)
     logo = _logo(bbox, definition)
     if logo is not None:
         managed.append(logo)

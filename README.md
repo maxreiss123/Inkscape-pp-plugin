@@ -51,11 +51,12 @@ All commands live under **Extensions → Presentation**.
   clear an object's animation.
 - **Import a master** — *Import Master* reads a PowerPoint presentation or
   template (`.pptx` / `.potx`) or a LibreOffice file (`.odp` / `.otp`) and
-  applies its theme: slide size/aspect, the slide master's background, accent,
-  fonts, and title/body sizes & colours. Existing slides are restyled (content
-  preserved) so the import is immediately visible, and a summary dialog lists
-  everything that was imported. Placeholder geometry and images are not
-  imported.
+  applies its theme: slide size/aspect, the slide master's background (solid
+  colour, background **picture**, or `bgRef`), fonts, accent, and title/body
+  sizes & colours. The master's **decorative vector shapes** (colour bands,
+  rules, accent blocks, logos) are translated to SVG and reproduced behind every
+  slide. Existing slides are restyled (content preserved) so the import is
+  immediately visible, and a summary dialog lists everything that was imported.
 - **Generate deck from outline** — *Generate Deck from Outline* turns a Markdown
   outline into slides: `# Title` → a title slide, `## Heading` → a content slide,
   `- bullet` → body bullets, fenced code / ```` ```mermaid ```` blocks → rendered

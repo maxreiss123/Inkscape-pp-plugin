@@ -249,14 +249,15 @@ def _import_pptx(path):
     with zipfile.ZipFile(path) as zf:
         names = zf.namelist()
 
+        cx_emu = cy_emu = None
         pres_root = _zip_xml(zf, "ppt/presentation.xml")
         if pres_root is not None:
             sldsz = pres_root.find("{%s}sldSz" % _P)
             if sldsz is not None:
                 try:
-                    cx = float(sldsz.get("cx")) / EMU_PER_PX
-                    cy = float(sldsz.get("cy")) / EMU_PER_PX
-                    aspect, size = _aspect_for(cx, cy)
+                    cx_emu = float(sldsz.get("cx"))
+                    cy_emu = float(sldsz.get("cy"))
+                    aspect, size = _aspect_for(cx_emu / EMU_PER_PX, cy_emu / EMU_PER_PX)
                 except (TypeError, ValueError):
                     pass
 
@@ -310,7 +311,7 @@ def _import_pptx(path):
         elif scheme.get("lt1"):
             overrides["bg_color"] = scheme["lt1"]
 
-        # Title / body text styles from the master.
+        # Title / body text styles, and the master's decorative vector shapes.
         if master_name:
             mroot = _zip_xml(zf, master_name)
             if mroot is not None:
@@ -318,6 +319,21 @@ def _import_pptx(path):
                                  "title_font_size", "title_color", overrides)
                 _style_overrides(mroot.find(".//{%s}bodyStyle" % _P), scheme,
                                  "body_font_size", "text_color", overrides)
+            if cx_emu:
+                from . import document, ooxml_shapes
+                page_w, _ = document.resolve_size(
+                    aspect if aspect in ("16:9", "4:3") else "16:9",
+                    *(size or (None, None)))
+                scale = page_w / cx_emu
+
+                def _resolve(el):
+                    return _resolve_color(el, scheme)
+
+                shapes = ooxml_shapes.shapes_svg(
+                    zf, master_name, scale, _resolve, _rel_target)
+                if shapes is not None:
+                    import lxml.etree as _ET
+                    overrides["bg_shapes"] = _ET.tostring(shapes).decode("utf-8")
 
     if "title_color" not in overrides and scheme.get("dk2"):
         overrides["title_color"] = scheme["dk2"]
@@ -412,6 +428,11 @@ def apply_import(pres, path, resize=True, restyle=True):
     for key in sorted(overrides):
         if key == "bg_image":
             lines.append("   background: image from template")
+            continue
+        if key == "bg_shapes":
+            n = overrides[key].count("<ns0:") or overrides[key].count("<rect") \
+                + overrides[key].count("<ellipse") + overrides[key].count("<image")
+            lines.append("   master graphics: %d shapes" % max(1, n))
             continue
         value = overrides[key]
         if key.endswith("_font_size"):
