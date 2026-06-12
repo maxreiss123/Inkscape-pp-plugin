@@ -1,21 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
-  <name>Edit Master</name>
+  <name>Edit Slide Master</name>
   <id>org.inkscape.pp.master_edit</id>
-  <param name="bg_color" type="color" gui-text="Background color">4294967295</param>
-  <param name="accent_color" type="color" gui-text="Accent color">708747263</param>
-  <param name="title_font_size" type="int" min="8" max="200" gui-text="Title font size">48</param>
-  <param name="body_font_size" type="int" min="8" max="200" gui-text="Body font size">28</param>
-  <param name="font_family" type="string" gui-text="Font family">sans-serif</param>
-  <param name="logo_path" type="path" mode="file" gui-text="Logo image (optional)"></param>
-  <param name="show_footer" type="bool" gui-text="Show footer">true</param>
-  <param name="show_number" type="bool" gui-text="Show slide number">true</param>
-  <param name="show_date" type="bool" gui-text="Show date">false</param>
+
+  <param name="tab" type="notebook">
+    <page name="bg" gui-text="Background">
+      <param name="bg_mode" type="optiongroup" appearance="combo" gui-text="Background">
+        <option value="keep">Keep current</option>
+        <option value="color">Solid colour</option>
+        <option value="image">Image (embedded)</option>
+        <option value="none">None (white)</option>
+      </param>
+      <param name="bg_color" type="color" gui-text="Colour (for 'Solid colour')">4294967295</param>
+      <param name="bg_image" type="path" mode="file" filetypes="png,jpg,jpeg,svg,webp,bmp,gif" gui-text="Image (for 'Image')"></param>
+    </page>
+
+    <page name="logo" gui-text="Logo">
+      <param name="logo_path" type="path" mode="file" filetypes="png,jpg,jpeg,svg,webp,bmp,gif" gui-text="Logo image"></param>
+      <param name="logo_pos" type="optiongroup" appearance="combo" gui-text="Position">
+        <option value="top-left">Top-left</option>
+        <option value="top-right">Top-right</option>
+        <option value="bottom-left">Bottom-left</option>
+        <option value="bottom-right">Bottom-right</option>
+      </param>
+      <param name="logo_size" type="float" min="0.03" max="0.5" precision="2" gui-text="Size (fraction of slide)">0.12</param>
+      <param name="logo_clear" type="bool" gui-text="Remove logo">false</param>
+    </page>
+
+    <page name="type" gui-text="Fonts &amp; colours">
+      <param name="font_family" type="string" gui-text="Font family (blank = keep)"></param>
+      <param name="title_font_size" type="int" min="0" max="200" gui-text="Title size (0 = keep)">0</param>
+      <param name="body_font_size" type="int" min="0" max="200" gui-text="Body size (0 = keep)">0</param>
+      <param name="title_color" type="color" gui-text="Title colour">269488383</param>
+      <param name="text_color" type="color" gui-text="Body text colour">589505535</param>
+      <param name="accent_color" type="color" gui-text="Accent colour">708747263</param>
+    </page>
+
+    <page name="fields" gui-text="Footer &amp; numbers">
+      <param name="footer_text" type="string" gui-text="Footer text"></param>
+      <param name="show_footer" type="bool" gui-text="Show footer">true</param>
+      <param name="show_number" type="bool" gui-text="Show slide number">true</param>
+      <param name="show_date" type="bool" gui-text="Show date">false</param>
+    </page>
+  </param>
+
   <param name="apply_now" type="bool" gui-text="Apply to all slides now">true</param>
+
   <effect needs-live-preview="false">
     <object-type>all</object-type>
     <effects-menu>
-      <submenu name="Presentation"/>
+      <submenu name="Presentation">
+        <submenu name="Slide Master"/>
+      </submenu>
     </effects-menu>
   </effect>
   <script>

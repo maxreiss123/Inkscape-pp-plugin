@@ -108,7 +108,9 @@ def _logo(bbox, defn):
     img.set("y", str(y))
     img.set("width", str(w))
     img.set("height", str(h))
+    img.set("preserveAspectRatio", "xMidYMid meet")
     img.set("{http://www.w3.org/1999/xlink}href", href)
+    img.set("href", href)
     S.set_pp(img, C.A_PH_ROLE, C.PhRole.LOGO)
     S.set_pp(img, C.A_MANAGED, "true")
     return img
