@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Margins / Safe Area</name>
+  <id>org.inkscape.pp.margins</id>
+  <param name="margin" type="float" min="0" max="0.3" precision="3" gui-text="Margin (fraction of slide)">0.05</param>
+  <param name="show" type="bool" gui-text="Show margin guides on slides">true</param>
+  <param name="info" type="description">Margin guides are an authoring aid: shown on every slide while editing, hidden in the presentation and all exports. Set 'Show' off to hide them.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation"/>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_margins.py</command>
+  </script>
+</inkscape-extension>

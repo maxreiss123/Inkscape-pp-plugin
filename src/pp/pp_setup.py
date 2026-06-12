@@ -16,6 +16,7 @@ class SetupPresentation(inkex.EffectExtension):
         pars.add_argument("--date_mode", default=C.DateMode.NONE)
         pars.add_argument("--author", default="")
         pars.add_argument("--first_layout", default=C.LayoutKey.TITLE)
+        pars.add_argument("--margin", type=float, default=0.0)
 
     def effect(self):
         pres = Presentation(self.svg)
@@ -32,6 +33,7 @@ class SetupPresentation(inkex.EffectExtension):
             date_mode=self.options.date_mode,
             author=self.options.author,
             first_layout=self.options.first_layout,
+            margin=self.options.margin,
         )
 
 
