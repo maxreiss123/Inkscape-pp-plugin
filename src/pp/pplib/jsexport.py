@@ -89,9 +89,10 @@ def build(pres, transition="fade", loop=False, start=0):
     from . import placeholders as _ph
     _ph.strip_prompts(root)
 
-    # Strip on-canvas build-order badges (authoring aid only).
-    from . import anim
+    # Strip authoring-only aids (build badges and margin guides).
+    from . import anim, margins
     anim.strip_badges_tree(root)
+    margins.strip_tree(root)
 
     # Remove master layers and namedview (authoring-only).
     for el in list(root):

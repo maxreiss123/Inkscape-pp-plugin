@@ -21,6 +21,8 @@
     <option value="fixed">Fixed</option>
   </param>
   <param name="author" type="string" gui-text="Author"></param>
+  <param name="margin" type="float" min="0" max="0.3" precision="3" gui-text="Safe-area margin (fraction; 0 = none)">0.05</param>
+  <param name="margininfo" type="description">Margin guides show on each slide while editing and are hidden in the presentation / exports.</param>
   <effect needs-live-preview="false">
     <object-type>all</object-type>
     <effects-menu>

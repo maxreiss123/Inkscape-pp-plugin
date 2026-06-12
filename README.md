@@ -10,14 +10,21 @@ All commands live under **Extensions → Presentation**.
 ## Features
 
 - **Setup presentation** — pick a slide size (16:9 / 4:3 / custom), footer, date
-  mode and author; creates a default master and the first slide.
+  mode, author, and a **safe-area margin**; creates a default master and the
+  first slide.
+- **Margins / safe area** — a dashed margin guide is drawn on every slide as an
+  authoring aid and is **hidden in the presentation and all exports** (browser,
+  PDF, PPTX, HTML). Set it in Setup or change/toggle it later via
+  *Extensions → Presentation → Margins / Safe Area*.
 - **Slide templates / master** — a reusable background, logo, footer and slide
   number applied across every slide. Edit it once; refresh all slides. The
   master commands live under **Extensions → Presentation → Slide Master**:
   *Edit Slide Master* (a tabbed dialog for background colour/image, logo +
   position/size, fonts, sizes, title/body/accent colours, and footer/number/date),
   *Apply / Refresh*, and *Import Master*. Images are embedded so they survive
-  save/reload and export.
+  save/reload and export. **Import Master** works on a blank document too — it
+  creates a starter deck from the template so you immediately see the result
+  (you don't have to run Setup first).
 - **Layouts with placeholders** — Title, Title + Content, Two Content and Blank.
   Placeholders ("Click to add title") are positioned automatically and scale to
   any slide size.

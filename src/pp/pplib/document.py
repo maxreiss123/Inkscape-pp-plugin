@@ -17,12 +17,15 @@ def resolve_size(aspect, width=None, height=None):
 
 def init_presentation(pres, aspect="16:9", width=None, height=None,
                       footer_text="", date_mode=C.DateMode.NONE,
-                      date_value="", author="", first_layout=C.LayoutKey.TITLE):
+                      date_value="", author="", first_layout=C.LayoutKey.TITLE,
+                      margin=0.0):
     """Turn the current SVG into a presentation document.
 
     Sets the canvas size/viewBox, writes presentation config, creates the
     default master and one starting slide. Returns the first :class:`Slide`.
     """
+    from . import margins
+
     w, h = resolve_size(aspect, width, height)
     svg = pres.svg
 
@@ -37,7 +40,9 @@ def init_presentation(pres, aspect="16:9", width=None, height=None,
     pres.set_config(C.A_DATE_MODE, date_mode)
     pres.set_config(C.A_DATE_VALUE, date_value)
     pres.set_config(C.A_AUTHOR, author)
+    margins.set_margin(pres, margin, show=margin > 0)
 
     template.ensure_master(pres)
     slide = pages.add_slide(pres, first_layout)
+    margins.refresh(pres)
     return slide

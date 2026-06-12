@@ -5,7 +5,8 @@
   <param name="file" type="path" mode="file" filetypes="pptx,potx,odp,otp" gui-text="Presentation or template (.pptx / .potx / .odp / .otp)"></param>
   <param name="resize" type="bool" gui-text="Match slide size / aspect">true</param>
   <param name="restyle" type="bool" gui-text="Restyle existing slides (fonts, sizes, colours)">true</param>
-  <param name="info" type="description">Imports the slide size, master background, accent, fonts and title/body styles, then applies them to the deck and shows a summary of what was imported. Placeholder geometry and images are not imported.</param>
+  <param name="new_deck" type="bool" gui-text="Create a new deck from the template (if none yet)">true</param>
+  <param name="info" type="description">Imports the slide size, master background / picture / shapes, accent, fonts and title/body styles, then applies them and shows a summary. If you run this on a blank document it first creates a starter deck so you see the result.</param>
   <effect needs-live-preview="false">
     <object-type>all</object-type>
     <effects-menu>

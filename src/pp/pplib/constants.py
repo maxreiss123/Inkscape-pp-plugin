@@ -63,6 +63,8 @@ A_CONTENT_LANG = "content-lang"  # language hint for code regions
 A_EFFECT_ORDER = "effect-order"  # build step (>=1) at which an object appears
 A_EFFECT_TYPE = "effect-type"    # appear | fade | fly | grow
 A_NOTES = "notes"                # speaker notes (stored as a child element's text)
+A_MARGIN = "margin"              # safe-area margin as a fraction of the slide
+A_SHOW_MARGINS = "show-margins"  # "true"/"false": draw margin guides on slides
 
 # Presentation-level config (stored on the root <svg>)
 A_ASPECT = "aspect"

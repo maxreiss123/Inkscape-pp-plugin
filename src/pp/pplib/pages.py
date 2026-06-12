@@ -107,6 +107,10 @@ def add_slide(pres, layout_key=C.LayoutKey.BLANK, position=None, apply_master=Tr
         master = template.ensure_master(pres)
         template.apply_master(pres, slide, master.definition)
 
+    # Draw the safe-area margin guide (authoring aid, stripped from exports).
+    from . import margins
+    margins.refresh_slide(slide, margins.get_margin(pres), margins.margins_shown(pres))
+
     relayout_pages(pres)
     return slide
 
