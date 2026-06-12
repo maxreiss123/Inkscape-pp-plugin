@@ -150,6 +150,98 @@ def test_import_potx_with_slide_master():
     assert aspect == "16:9"
 
 
+_PNG_1X1 = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc`\x00\x02"
+    b"\x00\x00\x05\x00\x01\xe2&\x05\x9b\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+PPTX_MASTER_IMAGE = (
+    '<p:sldMaster xmlns:p="%s" xmlns:a="%s" xmlns:r="%s"><p:cSld>'
+    '<p:bg><p:bgPr><a:blipFill><a:blip r:embed="rId1"/>'
+    "<a:stretch><a:fillRect/></a:stretch></a:blipFill></p:bgPr></p:bg>"
+    "<p:spTree/></p:cSld></p:sldMaster>"
+    % (P, A, mastersimport._R)
+)
+
+
+def _make_pptx_image_bg():
+    fd, path = tempfile.mkstemp(suffix=".pptx")
+    os.close(fd)
+    rels = (
+        '<Relationships xmlns="%s">'
+        '<Relationship Id="rId1" Type="%s/image" Target="../media/image1.png"/>'
+        "</Relationships>" % (mastersimport._CT, mastersimport._R)
+    )
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("ppt/presentation.xml", PPTX_PRES)
+        zf.writestr("ppt/theme/theme1.xml", PPTX_THEME)
+        zf.writestr("ppt/slideMasters/slideMaster1.xml", PPTX_MASTER_IMAGE)
+        zf.writestr("ppt/slideMasters/_rels/slideMaster1.xml.rels", rels)
+        zf.writestr("ppt/media/image1.png", _PNG_1X1)
+    return path
+
+
+def test_background_image_extracted_and_applied(presentation):
+    path = _make_pptx_image_bg()
+    try:
+        overrides, _, _ = mastersimport.import_master(path)
+        assert overrides["bg_image"].startswith("data:image/png;base64,")
+        mastersimport.apply_import(presentation, path)
+    finally:
+        os.remove(path)
+    # Every slide now carries a managed background <image>.
+    from pplib import constants as C
+    from pplib import svgutil as S
+    for slide in presentation.slides():
+        imgs = [e for e in slide.layer
+                if e.tag.endswith("}image")
+                and S.get_pp(e, C.A_PH_ROLE) == C.PhRole.BACKGROUND]
+        assert len(imgs) == 1
+        assert imgs[0].get("{http://www.w3.org/1999/xlink}href").startswith(
+            "data:image/png;base64,")
+
+
+PPTX_MASTER_SHAPES = (
+    '<p:sldMaster xmlns:p="%s" xmlns:a="%s"><p:cSld><p:spTree>'
+    '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+    "<p:grpSpPr/>"
+    '<p:sp><p:nvSpPr><p:cNvPr id="2" name="band"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
+    '<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="12192000" cy="1219200"/></a:xfrm>'
+    '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+    '<a:solidFill><a:srgbClr val="0E2A47"/></a:solidFill></p:spPr></p:sp>'
+    '<p:sp><p:nvSpPr><p:cNvPr id="3" name="dot"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
+    '<p:spPr><a:xfrm><a:off x="10000000" y="5000000"/><a:ext cx="800000" cy="800000"/></a:xfrm>'
+    '<a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
+    '<a:solidFill><a:schemeClr val="accent1"/></a:solidFill></p:spPr></p:sp>'
+    "</p:spTree></p:cSld></p:sldMaster>" % (P, A)
+)
+
+
+def test_master_vector_shapes_imported_and_applied(presentation):
+    path = _make_pptx(master=PPTX_MASTER_SHAPES)
+    try:
+        overrides, _, _ = mastersimport.import_master(path)
+        assert "bg_shapes" in overrides
+        # Band rect (navy) + dot ellipse (accent1 resolved) translated to SVG.
+        assert "rect" in overrides["bg_shapes"]
+        assert "ellipse" in overrides["bg_shapes"]
+        assert "#0E2A47" in overrides["bg_shapes"]
+        assert "#4472C4" in overrides["bg_shapes"]  # schemeClr accent1
+        mastersimport.apply_import(presentation, path)
+    finally:
+        os.remove(path)
+    from pplib import constants as C
+    from pplib import svgutil as S
+    for slide in presentation.slides():
+        groups = [e for e in slide.layer
+                  if e.tag.endswith("}g")
+                  and S.get_pp(e, C.A_PH_ROLE) == C.PhRole.BACKGROUND]
+        assert groups, "master graphics group missing"
+        assert groups[0].findall(".//{http://www.w3.org/2000/svg}rect")
+        assert groups[0].findall(".//{http://www.w3.org/2000/svg}ellipse")
+
+
 def test_master_bgref_scheme_colour_resolves():
     path = _make_pptx(master=PPTX_MASTER_SCHEME_BG)
     try:
