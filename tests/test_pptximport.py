@@ -139,3 +139,91 @@ def test_non_pptx_rejected():
     pres = _blank_pres()
     with pytest.raises(ValueError):
         pptximport.import_presentation(pres, "/tmp/whatever.odp")
+
+
+def test_per_run_font_size_and_colour(tmp_path):
+    """A run's explicit size and colour survive the import."""
+    from pplib import placeholders as Ph
+    from pptx.dml.color import RGBColor
+    from pptx.util import Pt
+
+    p = PptxPresentation()
+    s = p.slides.add_slide(p.slide_layouts[1])
+    s.shapes.title.text = "T"
+    para = s.placeholders[1].text_frame.paragraphs[0]
+    para.text = "Big red"
+    run = para.runs[0]
+    run.font.size = Pt(40)
+    run.font.color.rgb = RGBColor(0xC0, 0x39, 0x2B)
+    path = str(tmp_path / "fmt.pptx")
+    p.save(path)
+
+    pres = _blank_pres()
+    pptximport.import_presentation(pres, path)
+    body = Ph.placeholder_text_el(pres.slides()[0].placeholder("body"))
+    assert body.style["font-size"] == "80px"  # 40pt * 2
+    assert body.style["fill"].upper() == "#C0392B"
+
+
+# A minimal but real OOXML package whose slide inherits a background *picture*
+# from its slide layout -- the case branded templates use and that the importer
+# must resolve through the slide -> layout chain.
+import zipfile  # noqa: E402
+
+_CT = "http://schemas.openxmlformats.org/package/2006/relationships"
+_RT = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc`\x00\x02"
+    b"\x00\x00\x05\x00\x01\xe2&\x05\x9b\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+def _layout_bg_pptx(path):
+    P, A, R = pptximport._P, pptximport._A, pptximport._R
+    pres = ('<p:presentation xmlns:p="%s" xmlns:r="%s">'
+            '<p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>'
+            '<p:sldSz cx="12192000" cy="6858000"/></p:presentation>' % (P, R))
+    pres_rels = ('<Relationships xmlns="%s">'
+                 '<Relationship Id="rId1" Type="%s/slide" Target="slides/slide1.xml"/>'
+                 "</Relationships>" % (_CT, _RT))
+    slide = ('<p:sld xmlns:p="%s" xmlns:a="%s"><p:cSld><p:spTree>'
+             '<p:sp><p:nvSpPr><p:cNvPr id="2" name="t"/><p:cNvSpPr/>'
+             '<p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr><p:spPr/>'
+             '<p:txBody><a:bodyPr/><a:p><a:r><a:t>Hi</a:t></a:r></a:p></p:txBody>'
+             "</p:sp></p:spTree></p:cSld></p:sld>" % (P, A))
+    slide_rels = ('<Relationships xmlns="%s">'
+                  '<Relationship Id="rId1" Type="%s/slideLayout" '
+                  'Target="../slideLayouts/slideLayout1.xml"/>'
+                  "</Relationships>" % (_CT, _RT))
+    layout = ('<p:sldLayout xmlns:p="%s" xmlns:a="%s" xmlns:r="%s"><p:cSld>'
+              '<p:bg><p:bgPr><a:blipFill><a:blip r:embed="rId1"/>'
+              "<a:stretch><a:fillRect/></a:stretch></a:blipFill></p:bgPr></p:bg>"
+              "<p:spTree/></p:cSld></p:sldLayout>" % (P, A, R))
+    layout_rels = ('<Relationships xmlns="%s">'
+                   '<Relationship Id="rId1" Type="%s/image" '
+                   'Target="../media/image1.png"/>'
+                   "</Relationships>" % (_CT, _RT))
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("ppt/presentation.xml", pres)
+        zf.writestr("ppt/_rels/presentation.xml.rels", pres_rels)
+        zf.writestr("ppt/slides/slide1.xml", slide)
+        zf.writestr("ppt/slides/_rels/slide1.xml.rels", slide_rels)
+        zf.writestr("ppt/slideLayouts/slideLayout1.xml", layout)
+        zf.writestr("ppt/slideLayouts/_rels/slideLayout1.xml.rels", layout_rels)
+        zf.writestr("ppt/media/image1.png", _PNG)
+
+
+def test_layout_background_picture_resolved_per_slide(tmp_path):
+    path = str(tmp_path / "branded.pptx")
+    _layout_bg_pptx(path)
+    pres = _blank_pres()
+    count, summary = pptximport.import_presentation(pres, path)
+    assert count == 1
+    assert "slide backgrounds: 1" in summary
+    slide = pres.slides()[0]
+    # A background <image> (from the layout's p:bg picture) sits on the slide.
+    imgs = [e for e in slide.layer.iter() if e.tag.endswith("}image")]
+    assert imgs, "layout background picture was not imported"
+    assert imgs[0].get("href", "").startswith("data:image/png;base64,")
+

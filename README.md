@@ -25,6 +25,13 @@ All commands live under **Extensions → Presentation**.
   save/reload and export. **Import Master** works on a blank document too — it
   creates a starter deck from the template so you immediately see the result
   (you don't have to run Setup first).
+- **Set Current Slide as Master** — prefer designing to dialog-tweaking? Draw a
+  slide the way you want it — a background colour or picture, a logo, a colour
+  band, the title/body text styled how you like — then *Slide Master → Set
+  Current Slide as Master*. It captures that look (background, decoration, logo,
+  fonts, sizes and colours) into the master and applies it. Choose **every
+  slide** or **only slides with this layout**, so a *title* master and a
+  *content* master can differ.
 - **Layouts with placeholders** — Title, Title + Content, Two Content and Blank.
   Placeholders ("Click to add title") are positioned automatically and scale to
   any slide size.
@@ -64,12 +71,14 @@ All commands live under **Extensions → Presentation**.
 - **Import a whole PowerPoint deck** — *Import PPTX Presentation*
   (**Extensions → Presentation**) reads an entire `.pptx` / `.pptm` / `.ppsx`
   file and rebuilds **every slide** as a native slide: the title / subtitle /
-  bullet text (mapped onto editable placeholders), free-floating text boxes,
-  pictures and shapes, and the **speaker notes**. The file's theme (slide
-  size/aspect, master background, fonts and colours) is applied on top, so the
-  imported deck looks right immediately. Choose *Replace the current slides* or
-  *append*, and toggle note import. A summary lists how many slides, pictures,
-  text boxes and notes were imported.
+  bullet text (mapped onto editable placeholders, keeping each run's **font size
+  and colour**), free-floating text boxes, pictures and shapes, and the
+  **speaker notes**. Each slide's **effective background is resolved through the
+  slide → layout → master chain**, so a branded template's background pictures
+  and colour bands (which usually live on the layout/master, not the slide) come
+  across behind the right slides. Choose *Replace the current slides* or
+  *append*, and toggle note import. A summary lists how many slides, backgrounds,
+  pictures, text boxes and notes were imported.
 - **Import a master** — *Import Master* (under **Slide Master**) reads a
   PowerPoint presentation or template (`.pptx` / `.potx`) or a LibreOffice file
   (`.odp` / `.otp`) and applies just its **theme**: slide size/aspect, the slide
