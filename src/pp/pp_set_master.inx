@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+  <name>Set Current Slide as Master</name>
+  <id>org.inkscape.pp.set_master</id>
+  <param name="scope" type="optiongroup" appearance="radio" gui-text="Use this slide's look for">
+    <option value="all">Every slide (whole deck)</option>
+    <option value="layout">Only slides with this layout (e.g. title vs content)</option>
+  </param>
+  <param name="info" type="description">Captures the current slide's background colour/picture, logo, decoration and title/body text styles into the slide master, then applies it. Design a slide the way you want, then run this -- no need for the tabbed editor.</param>
+  <effect needs-live-preview="false">
+    <object-type>all</object-type>
+    <effects-menu>
+      <submenu name="Presentation">
+        <submenu name="Slide Master"/>
+      </submenu>
+    </effects-menu>
+  </effect>
+  <script>
+    <command location="inx" interpreter="python">pp_set_master.py</command>
+  </script>
+</inkscape-extension>

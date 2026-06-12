@@ -180,6 +180,22 @@ def _restyle_placeholders(layer, definition):
                 text.style["fill"] = text_clr
 
 
+def effective_definition(definition, layout_key):
+    """Merge a master definition with its per-layout overrides for a layout.
+
+    A definition may carry a ``layouts`` map ({layout_key: {overrides}}) so the
+    same master can style title slides, content slides etc. differently (built
+    via *Set Current Slide as Master*). The base definition is the fallback.
+    """
+    layers = definition.get("layouts")
+    if isinstance(layers, dict) and layout_key in layers:
+        merged = dict(definition)
+        merged.update(layers[layout_key] or {})
+        merged.pop("layouts", None)
+        return merged
+    return definition
+
+
 def apply_master(pres, slide, definition, overwrite_user=False, restyle=False):
     """(Re)generate master-managed content on ``slide`` from ``definition``.
 
@@ -189,6 +205,7 @@ def apply_master(pres, slide, definition, overwrite_user=False, restyle=False):
     also applied to placeholder text (content preserved).
     """
     layer = slide.layer
+    definition = effective_definition(definition, slide.layout)
     bbox = slide.content_bbox  # author in local coords; layer transform places it
     slide.master_id = definition.get("id", "master-default")
 
