@@ -122,21 +122,76 @@ def _parse_scheme(theme_root):
     return scheme
 
 
+def _clr_transform(hexval, clr_el):
+    """Apply DrawingML colour transforms (lumMod/lumOff/shade/tint) to a hex.
+
+    These are how templates derive "darker accent" / "lighter accent" shades from
+    a single theme colour; ignoring them yields the wrong colour. Approximated in
+    RGB (close enough for visual fidelity)."""
+    if clr_el is None or not hexval:
+        return hexval
+    try:
+        r = int(hexval[1:3], 16)
+        g = int(hexval[3:5], 16)
+        b = int(hexval[5:7], 16)
+    except (ValueError, IndexError):
+        return hexval
+
+    def _val(child):
+        try:
+            return float(child.get("val", 0)) / 100000.0
+        except (TypeError, ValueError):
+            return None
+
+    for child in clr_el:
+        if not isinstance(child.tag, str):
+            continue
+        name = ET.QName(child.tag).localname
+        f = _val(child)
+        if f is None:
+            continue
+        if name == "lumMod":
+            r, g, b = r * f, g * f, b * f
+        elif name == "lumOff":
+            r, g, b = r + 255 * f, g + 255 * f, b + 255 * f
+        elif name == "shade":
+            r, g, b = r * f, g * f, b * f
+        elif name == "tint":
+            r, g, b = r * f + 255 * (1 - f), g * f + 255 * (1 - f), b * f + 255 * (1 - f)
+    clamp = lambda v: max(0, min(255, int(round(v))))  # noqa: E731
+    return "#%02X%02X%02X" % (clamp(r), clamp(g), clamp(b))
+
+
 def _resolve_color(el, scheme):
-    """Resolve the first colour inside ``el`` (srgbClr / schemeClr / sysClr)."""
+    """Resolve the first colour inside ``el`` (srgbClr / schemeClr / sysClr),
+    applying any lumMod/lumOff/shade/tint transforms on it."""
     if el is None:
         return None
     srgb = el.find(".//{%s}srgbClr" % _A)
     if srgb is not None:
-        return _hex(srgb.get("val"))
+        return _clr_transform(_hex(srgb.get("val")), srgb)
     sc = el.find(".//{%s}schemeClr" % _A)
     if sc is not None:
         name = sc.get("val")
-        return scheme.get(_SCHEME_ALIAS.get(name, name))
+        base = scheme.get(_SCHEME_ALIAS.get(name, name))
+        return _clr_transform(base, sc)
     sysc = el.find(".//{%s}sysClr" % _A)
     if sysc is not None:
         return _hex(sysc.get("lastClr") or sysc.get("val"))
     return None
+
+
+def _color_alpha(el):
+    """Return the fill/line opacity (0..1) from an <a:alpha> child, or None."""
+    if el is None:
+        return None
+    a = el.find(".//{%s}alpha" % _A)
+    if a is None:
+        return None
+    try:
+        return max(0.0, min(1.0, float(a.get("val", 100000)) / 100000.0))
+    except (TypeError, ValueError):
+        return None
 
 
 def _style_overrides(style_el, scheme, size_key, color_key, out):

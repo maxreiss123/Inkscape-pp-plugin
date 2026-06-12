@@ -256,3 +256,57 @@ def test_layout_background_picture_resolved_per_slide(tmp_path):
     assert imgs, "layout background picture was not imported"
     assert imgs[0].get("href", "").startswith("data:image/png;base64,")
 
+
+def _inherit_size_pptx(path):
+    """A deck whose body text has no run size -- it must inherit the master's."""
+    P, A, R = pptximport._P, pptximport._A, pptximport._R
+    pres = ('<p:presentation xmlns:p="%s" xmlns:r="%s">'
+            '<p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>'
+            '<p:sldSz cx="12192000" cy="6858000"/></p:presentation>' % (P, R))
+    pres_rels = ('<Relationships xmlns="%s"><Relationship Id="rId1" '
+                 'Type="%s/slide" Target="slides/slide1.xml"/></Relationships>'
+                 % (_CT, _RT))
+    # Body run carries NO sz / colour -> must inherit 28pt from the master.
+    slide = ('<p:sld xmlns:p="%s" xmlns:a="%s"><p:cSld><p:spTree>'
+             '<p:sp><p:nvSpPr><p:cNvPr id="2" name="b"/><p:cNvSpPr/>'
+             '<p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr><p:spPr/>'
+             '<p:txBody><a:bodyPr/><a:p><a:r><a:t>Inherit me</a:t></a:r></a:p>'
+             "</p:txBody></p:sp></p:spTree></p:cSld></p:sld>" % (P, A))
+    slide_rels = ('<Relationships xmlns="%s"><Relationship Id="rId1" '
+                  'Type="%s/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'
+                  "</Relationships>" % (_CT, _RT))
+    layout = ('<p:sldLayout xmlns:p="%s" xmlns:a="%s" xmlns:r="%s"><p:cSld><p:spTree>'
+              '<p:sp><p:nvSpPr><p:cNvPr id="2" name="b"/><p:cNvSpPr/>'
+              '<p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr><p:spPr/>'
+              "<p:txBody/></p:sp></p:spTree></p:cSld></p:sldLayout>" % (P, A, R))
+    layout_rels = ('<Relationships xmlns="%s"><Relationship Id="rId1" '
+                   'Type="%s/slideMaster" Target="../slideMasters/slideMaster1.xml"/>'
+                   "</Relationships>" % (_CT, _RT))
+    master = ('<p:sldMaster xmlns:p="%s" xmlns:a="%s"><p:cSld><p:spTree>'
+              '<p:sp><p:nvSpPr><p:cNvPr id="2" name="b"/><p:cNvSpPr/>'
+              '<p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr>'
+              '<p:spPr><a:xfrm><a:off x="457200" y="1600200"/>'
+              '<a:ext cx="8229600" cy="4525963"/></a:xfrm></p:spPr><p:txBody/></p:sp>'
+              "</p:spTree></p:cSld><p:txStyles>"
+              '<p:bodyStyle><a:lvl1pPr><a:defRPr sz="2800"/></a:lvl1pPr></p:bodyStyle>'
+              "</p:txStyles></p:sldMaster>" % (P, A))
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("ppt/presentation.xml", pres)
+        zf.writestr("ppt/_rels/presentation.xml.rels", pres_rels)
+        zf.writestr("ppt/slides/slide1.xml", slide)
+        zf.writestr("ppt/slides/_rels/slide1.xml.rels", slide_rels)
+        zf.writestr("ppt/slideLayouts/slideLayout1.xml", layout)
+        zf.writestr("ppt/slideLayouts/_rels/slideLayout1.xml.rels", layout_rels)
+        zf.writestr("ppt/slideMasters/slideMaster1.xml", master)
+
+
+def test_body_font_size_inherited_from_master(tmp_path):
+    path = str(tmp_path / "inh.pptx")
+    _inherit_size_pptx(path)
+    pres = _blank_pres()
+    pptximport.import_presentation(pres, path)
+    body = next(t for t in pres.slides()[0].layer.iter()
+                if t.tag.endswith("}text") and "Inherit me" in S.text_content(t))
+    # 28pt master body style -> 56px (no run-level size on the slide).
+    assert body.style["font-size"] == "56px"
+

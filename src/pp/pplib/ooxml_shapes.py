@@ -143,49 +143,61 @@ def _group_tf(grp, tf):
 
 
 def _fill(shape, resolve_color):
+    """Return (colour, opacity) for a shape's fill."""
     sppr = shape.find(_q(P, "spPr"))
     if sppr is not None:
         if sppr.find(_q(A, "noFill")) is not None:
-            return "none"
+            return "none", None
         sf = sppr.find(_q(A, "solidFill"))
         if sf is not None:
-            return resolve_color(sf) or "none"
+            return resolve_color(sf) or "none", _alpha(sf)
         gf = sppr.find(_q(A, "gradFill"))
         if gf is not None:
-            return resolve_color(gf) or "none"
+            return resolve_color(gf) or "none", _alpha(gf)
     style = shape.find(_q(P, "style"))
     if style is not None:
         fr = style.find(_q(A, "fillRef"))
         if fr is not None:
-            return resolve_color(fr) or "none"
-    return "none"
+            return resolve_color(fr) or "none", _alpha(fr)
+    return "none", None
+
+
+def _alpha(node):
+    """Opacity (0..1) from an <a:alpha> under a fill/line node, or None."""
+    from . import mastersimport
+    return mastersimport._color_alpha(node)
 
 
 def _stroke(shape, resolve_color, scale):
+    """Return (colour, width, opacity) for a shape's outline."""
     sppr = shape.find(_q(P, "spPr"))
     ln = sppr.find(_q(A, "ln")) if sppr is not None else None
     if ln is not None:
         if ln.find(_q(A, "noFill")) is not None:
-            return None, 0
+            return None, 0, None
         color = resolve_color(ln)
         w = _num(ln, "w") * scale or 1.0
         if color:
-            return color, w
+            return color, w, _alpha(ln)
     style = shape.find(_q(P, "style"))
     if style is not None:
         lr = style.find(_q(A, "lnRef"))
         if lr is not None:
             color = resolve_color(lr)
             if color:
-                return color, max(1.0, scale * 9525)
-    return None, 0
+                return color, max(1.0, scale * 9525), _alpha(lr)
+    return None, 0, None
 
 
-def _apply_style(el, fill, stroke, sw):
+def _apply_style(el, fill, stroke, stroke_w, fill_op=None, stroke_op=None):
     parts = ["fill:%s" % fill]
-    if stroke and sw:
+    if fill_op is not None:
+        parts.append("fill-opacity:%s" % round(fill_op, 3))
+    if stroke and stroke_w:
         parts.append("stroke:%s" % stroke)
-        parts.append("stroke-width:%s" % round(sw, 2))
+        parts.append("stroke-width:%s" % round(stroke_w, 2))
+        if stroke_op is not None:
+            parts.append("stroke-opacity:%s" % round(stroke_op, 3))
     else:
         parts.append("stroke:none")
     el.set("style", ";".join(parts))
@@ -205,8 +217,8 @@ def _shape(shape, tf, resolve_color):
     sppr = shape.find(_q(P, "spPr"))
     geom = sppr.find(_q(A, "prstGeom")) if sppr is not None else None
     prst = geom.get("prst") if geom is not None else "rect"
-    fill = _fill(shape, resolve_color)
-    stroke, sw = _stroke(shape, resolve_color, tf[2])
+    fill, fill_op = _fill(shape, resolve_color)
+    stroke, sw, stroke_op = _stroke(shape, resolve_color, tf[2])
     if fill == "none" and not stroke:
         return None  # invisible -- skip
 
@@ -234,7 +246,7 @@ def _shape(shape, tf, resolve_color):
         if prst and "round" in prst.lower():
             el.set("rx", str(round(min(w, h) * 0.08, 2)))
 
-    _apply_style(el, fill, stroke, sw)
+    _apply_style(el, fill, stroke, sw, fill_op=fill_op, stroke_op=stroke_op)
     _maybe_rotate(el, xfrm, x + w / 2, y + h / 2)
     return el
 

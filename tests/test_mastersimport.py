@@ -257,6 +257,45 @@ def test_unsupported_message_lists_formats():
     assert ".potx" in str(err.value)
 
 
+def _clr(xml):
+    import lxml.etree as ET
+    return ET.fromstring(xml % A)
+
+
+def test_colour_lummod_transform():
+    sf = _clr('<a:solidFill xmlns:a="%s"><a:srgbClr val="808080">'
+              '<a:lumMod val="50000"/></a:srgbClr></a:solidFill>')
+    assert mastersimport._resolve_color(sf, {}) == "#404040"  # 128 * 0.5 = 64
+
+
+def test_colour_tint_transform():
+    sf = _clr('<a:solidFill xmlns:a="%s"><a:srgbClr val="000000">'
+              '<a:tint val="50000"/></a:srgbClr></a:solidFill>')
+    # 0 * 0.5 + 255 * 0.5 = 128 -> #808080
+    assert mastersimport._resolve_color(sf, {}) == "#808080"
+
+
+def test_colour_alpha_opacity():
+    sf = _clr('<a:solidFill xmlns:a="%s"><a:srgbClr val="FF0000">'
+              '<a:alpha val="40000"/></a:srgbClr></a:solidFill>')
+    assert mastersimport._color_alpha(sf) == 0.4
+
+
+def test_shape_alpha_becomes_fill_opacity():
+    import lxml.etree as ET
+    from pplib import ooxml_shapes as OX
+    sp = ET.fromstring(
+        '<p:sp xmlns:p="%s" xmlns:a="%s">'
+        '<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1000" cy="1000"/></a:xfrm>'
+        '<a:prstGeom prst="rect"/><a:solidFill><a:srgbClr val="2E86C1">'
+        '<a:alpha val="40000"/></a:srgbClr></a:solidFill></p:spPr></p:sp>'
+        % (P, A))
+    el = OX._shape(sp, (0, 0, 1.0), lambda e: mastersimport._resolve_color(e, {}))
+    style = el.get("style")
+    assert "fill:#2E86C1" in style
+    assert "fill-opacity:0.4" in style
+
+
 def test_apply_import_summary_is_detailed(presentation):
     path = _make_pptx(master=PPTX_MASTER)
     try:

@@ -246,7 +246,25 @@ def _resolve_ph(slide_sp, layout_map, master_map, w, h, scale):
 # ---------------------------------------------------------------------------
 # Faithful per-slide content (document order, real geometry)
 # ---------------------------------------------------------------------------
-def _render_text(slide_sp, geom, scheme, family, default_color,
+def _inherited_size(ptype, defn):
+    """Size (px) a placeholder inherits from the template's master text styles."""
+    if ptype in ("ctrTitle", "title"):
+        return defn.get("title_font_size")
+    if ptype == "subTitle":
+        ts = defn.get("title_font_size")
+        return round(ts * 0.5) if ts else None
+    if ptype in ("body", "obj", None):
+        return defn.get("body_font_size")
+    return None
+
+
+def _inherited_color(ptype, defn):
+    if ptype in ("ctrTitle", "title"):
+        return defn.get("title_color") or defn.get("text_color")
+    return defn.get("text_color")
+
+
+def _render_text(slide_sp, geom, scheme, family, defn,
                  inh_algn=None, inh_anchor=None):
     txbody = slide_sp.find(_q(_P, "txBody"))
     lines = _txbody_lines(txbody)
@@ -256,8 +274,12 @@ def _render_text(slide_sp, geom, scheme, family, default_color,
     ph = _ph_of(slide_sp)
     ptype = ph.get("type", "body") if ph is not None else None
 
+    # Run formatting wins; otherwise inherit the template's master style for this
+    # placeholder type (real decks rarely set sz/colour on every run), then a
+    # sensible default.
     size_px, color, bold = _run_format(txbody, scheme)
-    fs = size_px or _DEFAULT_SIZE.get(ptype, 24)
+    fs = size_px or _inherited_size(ptype, defn) or _DEFAULT_SIZE.get(ptype, 24)
+    default_color = _inherited_color(ptype, defn) or "#000000"
 
     own_algn, own_anchor = _algn_anchor(slide_sp)
     algn = own_algn or inh_algn
@@ -285,7 +307,7 @@ def _render_text(slide_sp, geom, scheme, family, default_color,
 
 
 def _render_slide(zf, slide_part, layout_part, master_part, scale, scheme,
-                  family, default_color, w, h):
+                  family, defn, w, h):
     """Return ordered native elements for a slide's spTree, preserving z-order."""
     root = mastersimport._zip_xml(zf, slide_part)
     if root is None:
@@ -327,7 +349,7 @@ def _render_slide(zf, slide_part, layout_part, master_part, scale, scheme,
             if has_text:
                 geom, algn, anchor = _resolve_ph(
                     child, layout_map, master_map, w, h, scale)
-                el = _render_text(child, geom, scheme, family, default_color,
+                el = _render_text(child, geom, scheme, family, defn,
                                   algn, anchor)
                 if el is not None:
                     out.append(el)
@@ -501,7 +523,6 @@ def import_presentation(pres, path, replace=True, import_notes=True):
         w, h = pres.width, pres.height
         scale = (w / cx_emu) if cx_emu else 1.0
         family = defn.get("font_family", "sans-serif")
-        text_color = defn.get("text_color", "#000000")
 
         count = objs = bgs = noted = 0
         for part in parts:
@@ -518,7 +539,7 @@ def import_presentation(pres, path, replace=True, import_notes=True):
 
             els, texts, shapes = _render_slide(
                 zf, part, layout_part, master_part, scale, scheme,
-                family, text_color, w, h)
+                family, defn, w, h)
             for el in els:  # appended in document order -> z-order preserved
                 slide.layer.append(el)
             objs += texts + shapes
