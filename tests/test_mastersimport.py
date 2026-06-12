@@ -29,12 +29,38 @@ PPTX_THEME = (
 )
 
 
-def _make_pptx():
-    fd, path = tempfile.mkstemp(suffix=".pptx")
+# A realistic slide master: a coloured background (which lt1 does not reflect)
+# plus explicit title/body text styles -- the bits a typical corporate template
+# actually carries.
+PPTX_MASTER = (
+    '<p:sldMaster xmlns:p="%s" xmlns:a="%s">'
+    "<p:cSld>"
+    '<p:bg><p:bgPr><a:solidFill><a:srgbClr val="1F2933"/></a:solidFill></p:bgPr></p:bg>'
+    "<p:spTree/></p:cSld>"
+    "<p:txStyles>"
+    '<p:titleStyle><a:lvl1pPr><a:defRPr sz="4400">'
+    '<a:solidFill><a:srgbClr val="C0392B"/></a:solidFill>'
+    "</a:defRPr></a:lvl1pPr></p:titleStyle>"
+    '<p:bodyStyle><a:lvl1pPr><a:defRPr sz="2000"/></a:lvl1pPr></p:bodyStyle>'
+    "</p:txStyles></p:sldMaster>" % (P, A)
+)
+
+PPTX_MASTER_SCHEME_BG = (
+    '<p:sldMaster xmlns:p="%s" xmlns:a="%s">'
+    "<p:cSld>"
+    '<p:bg><p:bgRef idx="1001"><a:schemeClr val="accent1"/></p:bgRef></p:bg>'
+    "<p:spTree/></p:cSld></p:sldMaster>" % (P, A)
+)
+
+
+def _make_pptx(suffix=".pptx", master=None):
+    fd, path = tempfile.mkstemp(suffix=suffix)
     os.close(fd)
     with zipfile.ZipFile(path, "w") as zf:
         zf.writestr("ppt/presentation.xml", PPTX_PRES)
         zf.writestr("ppt/theme/theme1.xml", PPTX_THEME)
+        if master:
+            zf.writestr("ppt/slideMasters/slideMaster1.xml", master)
     return path
 
 
@@ -106,3 +132,64 @@ def test_apply_import_updates_master(presentation):
     assert defn["accent_color"] == "#4472C4"
     assert defn["font_family"] == "Calibri"
     assert "Imported" in summary or "theme" in summary
+
+
+def test_import_potx_with_slide_master():
+    """The .potx template format works, and the slide master drives the look."""
+    path = _make_pptx(suffix=".potx", master=PPTX_MASTER)
+    try:
+        overrides, aspect, size = mastersimport.import_master(path)
+    finally:
+        os.remove(path)
+    # Master background beats the theme's lt1 white.
+    assert overrides["bg_color"] == "#1F2933"
+    # 44pt title -> 88px in our units; explicit title colour; 20pt body -> 40px.
+    assert overrides["title_font_size"] == 88
+    assert overrides["title_color"] == "#C0392B"
+    assert overrides["body_font_size"] == 40
+    assert aspect == "16:9"
+
+
+def test_master_bgref_scheme_colour_resolves():
+    path = _make_pptx(master=PPTX_MASTER_SCHEME_BG)
+    try:
+        overrides, _, _ = mastersimport.import_master(path)
+    finally:
+        os.remove(path)
+    assert overrides["bg_color"] == "#4472C4"  # schemeClr accent1 resolved
+
+
+def test_unsupported_message_lists_formats():
+    with pytest.raises(ValueError) as err:
+        mastersimport.import_master("/tmp/whatever.key")
+    assert ".potx" in str(err.value)
+
+
+def test_apply_import_summary_is_detailed(presentation):
+    path = _make_pptx(master=PPTX_MASTER)
+    try:
+        summary = mastersimport.apply_import(presentation, path)
+    finally:
+        os.remove(path)
+    assert "background: #1F2933" in summary
+    assert "Applied to 3 slides." in summary
+
+
+def test_apply_import_restyles_existing_text(presentation):
+    from pplib import placeholders as Ph
+    from pplib import svgutil as S
+
+    slide = presentation.slides()[0]  # title layout
+    Ph.set_placeholder_text(slide.placeholder("title"), ["Hello"])
+
+    path = _make_pptx(master=PPTX_MASTER)
+    try:
+        mastersimport.apply_import(presentation, path)
+    finally:
+        os.remove(path)
+
+    text = Ph.placeholder_text_el(presentation.slides()[0].placeholder("title"))
+    assert text.style["font-family"] == "Calibri"
+    assert text.style["font-size"] == "88px"
+    assert text.style["fill"] == "#C0392B"
+    assert "Hello" in S.text_content(text)  # content untouched

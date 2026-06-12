@@ -33,11 +33,13 @@ def import_master(path):
     Raises ValueError for unsupported file types.
     """
     lower = path.lower()
-    if lower.endswith(".pptx"):
+    if lower.endswith((".pptx", ".potx", ".pptm", ".ppsx")):
         return _import_pptx(path)
-    if lower.endswith(".odp"):
+    if lower.endswith((".odp", ".otp")):
         return _import_odp(path)
-    raise ValueError("Unsupported file type (use .pptx or .odp): %s" % path)
+    raise ValueError(
+        "Unsupported file type: %s\n"
+        "Supported: PowerPoint .pptx / .potx and LibreOffice .odp / .otp." % path)
 
 
 # ---------------------------------------------------------------------------
@@ -95,6 +97,66 @@ def _clr_value(parent):
     return None
 
 
+# Slide-master colour-map aliases (default clrMap: bg1->lt1, tx1->dk1, ...).
+_SCHEME_ALIAS = {"bg1": "lt1", "tx1": "dk1", "bg2": "lt2", "tx2": "dk2"}
+
+# PowerPoint points -> our page user units. Our pages are 1.5x the slide's
+# 96dpi pixel size (16:9: 13.333in -> 1920, 4:3: 10in -> 1440), so
+# px = pt * (96/72) * 1.5 = pt * 2.
+_PT_TO_PX = 2.0
+
+
+def _parse_scheme(theme_root):
+    """Return {dk1, lt1, dk2, lt2, accent1..6, ...} -> '#RRGGBB'."""
+    scheme = {}
+    cs = theme_root.find(".//{%s}clrScheme" % _A)
+    if cs is None:
+        return scheme
+    for child in cs:
+        if not isinstance(child.tag, str):
+            continue
+        name = ET.QName(child.tag).localname
+        val = _clr_value(child)
+        if val:
+            scheme[name] = val
+    return scheme
+
+
+def _resolve_color(el, scheme):
+    """Resolve the first colour inside ``el`` (srgbClr / schemeClr / sysClr)."""
+    if el is None:
+        return None
+    srgb = el.find(".//{%s}srgbClr" % _A)
+    if srgb is not None:
+        return _hex(srgb.get("val"))
+    sc = el.find(".//{%s}schemeClr" % _A)
+    if sc is not None:
+        name = sc.get("val")
+        return scheme.get(_SCHEME_ALIAS.get(name, name))
+    sysc = el.find(".//{%s}sysClr" % _A)
+    if sysc is not None:
+        return _hex(sysc.get("lastClr") or sysc.get("val"))
+    return None
+
+
+def _style_overrides(style_el, scheme, size_key, color_key, out):
+    """Read font size / colour from a txStyles entry (title/body style)."""
+    if style_el is None:
+        return
+    rpr = style_el.find(".//{%s}defRPr" % _A)
+    if rpr is None:
+        return
+    sz = rpr.get("sz")  # hundredths of a point
+    if sz:
+        try:
+            out[size_key] = max(8, round(int(sz) / 100 * _PT_TO_PX))
+        except ValueError:
+            pass
+    color = _resolve_color(rpr, scheme)
+    if color:
+        out[color_key] = color
+
+
 def _import_pptx(path):
     overrides = {}
     aspect = size = None
@@ -111,18 +173,18 @@ def _import_pptx(path):
             except (TypeError, ValueError):
                 pass
 
+    scheme = {}
     theme_xml = _first_member(
         path, lambda n: n.startswith("ppt/theme/") and n.endswith(".xml"))
     if theme_xml:
         root = ET.fromstring(theme_xml)
-        scheme = root.find(".//{%s}clrScheme" % _A)
-        if scheme is not None:
-            bg = _clr_value(scheme.find("{%s}lt1" % _A))
-            accent = _clr_value(scheme.find("{%s}accent1" % _A))
-            if bg:
-                overrides["bg_color"] = bg
-            if accent:
-                overrides["accent_color"] = accent
+        scheme = _parse_scheme(root)
+        if scheme.get("lt1"):
+            overrides["bg_color"] = scheme["lt1"]
+        if scheme.get("accent1"):
+            overrides["accent_color"] = scheme["accent1"]
+        if scheme.get("dk1"):
+            overrides["text_color"] = scheme["dk1"]
         font_scheme = root.find(".//{%s}fontScheme" % _A)
         if font_scheme is not None:
             minor = font_scheme.find("{%s}minorFont/{%s}latin" % (_A, _A))
@@ -134,6 +196,27 @@ def _import_pptx(path):
                 face = major.get("typeface")
             if face:
                 overrides["font_family"] = face
+
+    # The real visual identity lives in the slide master: its background fill
+    # (often a colour the theme's lt1 does NOT reflect) and the title/body
+    # text styles. Without this, importing a typical template changed nothing.
+    master_xml = _first_member(
+        path, lambda n: n.startswith("ppt/slideMasters/") and n.endswith(".xml"))
+    if master_xml:
+        root = ET.fromstring(master_xml)
+        bg = root.find(".//{%s}bg" % _P)
+        color = _resolve_color(bg, scheme)
+        if color:
+            overrides["bg_color"] = color
+        _style_overrides(root.find(".//{%s}titleStyle" % _P), scheme,
+                         "title_font_size", "title_color", overrides)
+        _style_overrides(root.find(".//{%s}bodyStyle" % _P), scheme,
+                         "body_font_size", "text_color", overrides)
+
+    # PowerPoint headings default to the theme's dk2 ("text 2") colour when the
+    # master does not set an explicit title fill.
+    if "title_color" not in overrides and scheme.get("dk2"):
+        overrides["title_color"] = scheme["dk2"]
 
     return overrides, aspect, size
 
@@ -190,22 +273,43 @@ def _length_px(value):
         return None
 
 
-def apply_import(pres, path, resize=True):
+_PRETTY = {
+    "bg_color": "background", "accent_color": "accent",
+    "font_family": "font", "title_font_size": "title size",
+    "body_font_size": "body size", "title_color": "title colour",
+    "text_color": "text colour",
+}
+
+
+def apply_import(pres, path, resize=True, restyle=True):
     """Import a master from ``path`` into ``pres`` and apply it to all slides.
 
-    Returns a short human-readable summary of what was imported.
+    With ``restyle`` (default) the theme's fonts, sizes and colours are also
+    applied to the existing slide text -- like changing the theme in PowerPoint
+    -- so the import is immediately visible. Returns a human-readable summary.
     """
+    import os
+
     from . import document, pages, template
 
     overrides, aspect, size = import_master(path)
+    name = os.path.basename(path)
+    if not overrides and not aspect:
+        return ("No theme information found in %s.\n"
+                "The file does not seem to contain a theme or slide master." % name)
+
     master = template.ensure_master(pres)
     defn = master.definition
     defn.update(overrides)
-    defn["label"] = "Imported"
+    defn["label"] = os.path.splitext(name)[0]
     master.definition = defn
 
-    summary = ["Imported theme: " + ", ".join(sorted(overrides)) if overrides
-               else "No theme attributes found"]
+    lines = ["Imported theme from %s:" % name]
+    for key in sorted(overrides):
+        value = overrides[key]
+        if key.endswith("_font_size"):
+            value = "%s px" % value
+        lines.append("   %s: %s" % (_PRETTY.get(key, key), value))
 
     if resize and aspect:
         if aspect == "custom" and size:
@@ -217,7 +321,9 @@ def apply_import(pres, path, resize=True):
         pres.svg.set("viewBox", "0 0 %s %s" % (w, h))
         pres.set_config(C.A_ASPECT, aspect)
         pages.relayout_pages(pres)
-        summary.append("size %s (%gx%g)" % (aspect, w, h))
+        lines.append("   slide size: %s (%g x %g)" % (aspect, w, h))
 
-    template.apply_to_all(pres, defn)
-    return "; ".join(summary)
+    template.apply_to_all(pres, defn, restyle=restyle)
+    n = pres.slide_count()
+    lines.append("Applied to %d slide%s." % (n, "" if n == 1 else "s"))
+    return "\n".join(lines)
