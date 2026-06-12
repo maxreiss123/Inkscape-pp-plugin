@@ -10,7 +10,6 @@ import tempfile
 import pytest
 
 pptx = pytest.importorskip("pptx")
-from pplib import constants as C  # noqa: E402
 from pplib import notes, pptximport  # noqa: E402
 from pplib import svgutil as S  # noqa: E402
 from pptx import Presentation as PptxPresentation  # noqa: E402
@@ -70,6 +69,12 @@ def _blank_pres():
     return Presentation(root)
 
 
+def _slide_texts(slide):
+    """All visible text strings on a slide, in document order."""
+    return [S.text_content(t) for t in slide.layer.iter()
+            if t.tag.endswith("}text")]
+
+
 def test_import_creates_all_slides(deck_path):
     pres = _blank_pres()
     count, summary = pptximport.import_presentation(pres, deck_path)
@@ -79,30 +84,20 @@ def test_import_creates_all_slides(deck_path):
 
 
 def test_title_and_subtitle_roundtrip(deck_path):
-    from pplib import placeholders as Ph
-
     pres = _blank_pres()
     pptximport.import_presentation(pres, deck_path)
-    slide = pres.slides()[0]
-    assert slide.layout == C.LayoutKey.TITLE
-    title = Ph.placeholder_text_el(slide.placeholder("title"))
-    assert "Welcome" in S.text_content(title)
-    sub = Ph.placeholder_text_el(slide.placeholder("subtitle"))
-    assert "An imported deck" in S.text_content(sub)
+    texts = _slide_texts(pres.slides()[0])
+    assert any("Welcome" in t for t in texts)
+    assert any("An imported deck" in t for t in texts)
 
 
 def test_bullets_roundtrip(deck_path):
-    from pplib import placeholders as Ph
-
     pres = _blank_pres()
     pptximport.import_presentation(pres, deck_path)
-    slide = pres.slides()[1]
-    assert slide.layout == C.LayoutKey.TITLE_CONTENT
-    body = Ph.placeholder_text_el(slide.placeholder("body"))
-    text = S.text_content(body)
-    assert "First point" in text
-    assert "Second point" in text
-    assert "Third point" in text
+    joined = " ".join(_slide_texts(pres.slides()[1]))
+    assert "First point" in joined
+    assert "Second point" in joined
+    assert "Third point" in joined
 
 
 def test_notes_imported(deck_path):
@@ -116,10 +111,7 @@ def test_notes_imported(deck_path):
 def test_free_text_box_imported(deck_path):
     pres = _blank_pres()
     pptximport.import_presentation(pres, deck_path)
-    slide = pres.slides()[2]
-    texts = [S.text_content(t) for t in slide.layer.iter()
-             if t.tag.endswith("}text")]
-    assert any("Free text box" in t for t in texts)
+    assert any("Free text box" in t for t in _slide_texts(pres.slides()[2]))
 
 
 def test_append_mode_keeps_existing(deck_path, presentation):
@@ -143,7 +135,6 @@ def test_non_pptx_rejected():
 
 def test_per_run_font_size_and_colour(tmp_path):
     """A run's explicit size and colour survive the import."""
-    from pplib import placeholders as Ph
     from pptx.dml.color import RGBColor
     from pptx.util import Pt
 
@@ -160,9 +151,47 @@ def test_per_run_font_size_and_colour(tmp_path):
 
     pres = _blank_pres()
     pptximport.import_presentation(pres, path)
-    body = Ph.placeholder_text_el(pres.slides()[0].placeholder("body"))
+    body = next(t for t in pres.slides()[0].layer.iter()
+                if t.tag.endswith("}text") and "Big red" in S.text_content(t))
     assert body.style["font-size"] == "80px"  # 40pt * 2
     assert body.style["fill"].upper() == "#C0392B"
+
+
+def test_geometry_inherited_from_layout(deck_path):
+    """A title with an empty spPr is positioned from the layout placeholder."""
+    pres = _blank_pres()
+    pptximport.import_presentation(pres, deck_path)
+    title = next(t for t in pres.slides()[0].layer.iter()
+                 if t.tag.endswith("}text") and "Welcome" in S.text_content(t))
+    # The title-slide layout's ctrTitle sits at EMU x=685800 -> ~108px at 16:9,
+    # not our default-fraction fallback (0.10 * 1920 = 192).
+    assert 70 < float(title.get("x")) < 160
+
+
+def test_object_z_order_preserved(tmp_path):
+    """A shape drawn after a text box stays on top after import."""
+    from pptx.dml.color import RGBColor
+
+    p = PptxPresentation()
+    s = p.slides.add_slide(p.slide_layouts[6])  # blank
+    tb = s.shapes.add_textbox(Emu(1000000), Emu(1000000), Emu(3000000), Emu(800000))
+    tb.text_frame.text = "UNDER"
+    sh = s.shapes.add_shape(1, Emu(1000000), Emu(1000000), Emu(3000000), Emu(800000))
+    sh.fill.solid()
+    sh.fill.fore_color.rgb = RGBColor(0x00, 0x00, 0x00)
+    path = str(tmp_path / "z.pptx")
+    p.save(path)
+
+    pres = _blank_pres()
+    pptximport.import_presentation(pres, path)
+    children = list(pres.slides()[0].layer)
+    ti = next(i for i, e in enumerate(children)
+              if e.tag.endswith("}text") and "UNDER" in S.text_content(e))
+    ri = next(i for i, e in enumerate(children)
+              if e.tag.endswith("}rect") and "000000" in (e.get("style") or ""))
+    assert ti < ri  # text first (drawn earlier), shape on top -- order preserved
+
+
 
 
 # A minimal but real OOXML package whose slide inherits a background *picture*

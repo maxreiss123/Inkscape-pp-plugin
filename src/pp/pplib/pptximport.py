@@ -1,18 +1,15 @@
 """Import a whole PowerPoint presentation (slides *and* content) into the deck.
 
-Where :mod:`mastersimport` reads only a template's *theme* (size, master
-background, fonts, colours), this module reads the actual **slides**: their
-order, the title / subtitle / bullet text in placeholders, free-floating text
-boxes, pictures and decorative shapes, the speaker notes -- and, crucially, the
-**effective background of each slide** resolved through the
-slide -> slideLayout -> slideMaster chain (where branded templates actually keep
-their background pictures and colour bands). Per-run font sizes and colours are
-honoured too, so a slide's text looks the way it did in PowerPoint.
+Each PPTX slide is reproduced **faithfully**: its shapes are translated in
+document order (so the stacking / z-order is preserved) and positioned at their
+real geometry, which for placeholders is *inherited* from the slide layout and
+master (a slide's ``<p:spPr/>`` is usually empty). Text keeps its run font size
+and colour; pictures, auto-shapes and groups are translated to native SVG via
+:mod:`ooxml_shapes`; the slide's effective background is resolved through the
+slide -> slideLayout -> slideMaster chain; and speaker notes are imported.
 
-It reuses the OOXML plumbing proven by the master import (``mastersimport`` for
-colour-scheme parsing / relationship resolution / background extraction, and
-:mod:`ooxml_shapes` to translate DrawingML shapes and pictures to SVG).
-Placeholder *text* is mapped onto our layouts so it stays editable.
+It reuses the OOXML plumbing from :mod:`mastersimport` (colour-scheme parsing,
+relationship resolution, background extraction, theme overrides).
 """
 
 import base64
@@ -32,20 +29,42 @@ _R = mastersimport._R
 _SVG = "http://www.w3.org/2000/svg"
 _XLINK = "http://www.w3.org/1999/xlink"
 
-# PowerPoint points -> our page user units (our pages are 144dpi-equivalent, so
-# 1pt = 2px); shared with mastersimport.
+# PowerPoint points -> our page user units (1pt = 2px on our 144dpi pages).
 _PT_TO_PX = mastersimport._PT_TO_PX
+_EMU_PER_PT = 12700.0
 
 _PPTX_EXTS = (".pptx", ".pptm", ".ppsx", ".potx")
+
+# Placeholder types whose dynamic content our own master fields already provide.
+_FIELD_PH = {"ftr", "sldNum", "dt"}
+# Default font sizes (px) when a placeholder inherits its size.
+_DEFAULT_SIZE = {"ctrTitle": 80, "title": 80, "subTitle": 48,
+                 "body": 36, "obj": 36}
+# Default geometry (page fractions) when geometry can't be resolved.
+_DEFAULT_RECT = {
+    "ctrTitle": [0.10, 0.36, 0.80, 0.20], "title": [0.06, 0.05, 0.88, 0.15],
+    "subTitle": [0.15, 0.60, 0.70, 0.14], "body": [0.06, 0.25, 0.88, 0.66],
+    "obj": [0.06, 0.25, 0.88, 0.66],
+}
 
 
 def _q(ns, tag):
     return "{%s}%s" % (ns, tag)
 
 
+def _num(el, attr):
+    try:
+        return float(el.get(attr, 0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _ph_of(sp):
-    """Return the ``<p:ph>`` placeholder element of a shape, or None."""
     return sp.find(_q(_P, "nvSpPr") + "/" + _q(_P, "nvPr") + "/" + _q(_P, "ph"))
+
+
+def _localname(el):
+    return ET.QName(el).localname if isinstance(el.tag, str) else ""
 
 
 def _txbody_lines(txbody):
@@ -62,12 +81,12 @@ def _txbody_lines(txbody):
 
 
 def _run_format(txbody, scheme):
-    """Return (font_size_px, colour) from a txBody's first run, or (None, None)."""
+    """Return (size_px, colour, bold) from a txBody's first run."""
     if txbody is None:
-        return None, None
+        return None, None, False
     rpr = txbody.find(".//" + _q(_A, "rPr"))
     if rpr is None:
-        return None, None
+        return None, None, False
     size_px = None
     if rpr.get("sz"):
         try:
@@ -75,20 +94,16 @@ def _run_format(txbody, scheme):
         except ValueError:
             size_px = None
     color = mastersimport._resolve_color(rpr, scheme)
-    return size_px, color
-
-
-def _num(el, attr):
-    try:
-        return float(el.get(attr, 0))
-    except (TypeError, ValueError):
-        return 0.0
+    bold = rpr.get("b") in ("1", "true")
+    return size_px, color, bold
 
 
 # ---------------------------------------------------------------------------
 # Relationships: slide order, and slide -> layout -> master
 # ---------------------------------------------------------------------------
 def _rel_by_type(zf, part_name, type_suffix):
+    if not part_name:
+        return None
     d, base = posixpath.split(part_name)
     rels_name = posixpath.join(d, "_rels", base + ".rels")
     try:
@@ -105,7 +120,6 @@ def _rel_by_type(zf, part_name, type_suffix):
 
 
 def _slide_parts(zf):
-    """Resolve presentation.xml's sldIdLst to ordered slide part paths."""
     root = mastersimport._zip_xml(zf, "ppt/presentation.xml")
     if root is None:
         return []
@@ -124,110 +138,211 @@ def _slide_parts(zf):
 
 
 def _chain(zf, slide_part):
-    """Return (layout_part, master_part) for a slide, either may be None."""
     layout = _rel_by_type(zf, slide_part, "/slideLayout")
     master = _rel_by_type(zf, layout, "/slideMaster") if layout else None
     return layout, master
 
 
 # ---------------------------------------------------------------------------
-# Per-slide placeholder text + formatting
+# Placeholder geometry inheritance (slide -> layout -> master)
 # ---------------------------------------------------------------------------
-def _placeholders(zf, part, scheme):
-    """Return [{kind, lines, size_px, color}] for a slide's placeholders."""
-    root = mastersimport._zip_xml(zf, part)
-    if root is None:
+def _sp_xfrm(sp):
+    xfrm = sp.find(_q(_P, "spPr") + "/" + _q(_A, "xfrm"))
+    if xfrm is None:
         return None
+    off = xfrm.find(_q(_A, "off"))
+    ext = xfrm.find(_q(_A, "ext"))
+    if off is None or ext is None:
+        return None
+    return (_num(off, "x"), _num(off, "y"), _num(ext, "cx"), _num(ext, "cy"))
+
+
+def _norm_type(t):
+    return "title" if t in ("ctrTitle", "title") else (t or "body")
+
+
+def _algn_anchor(sp):
+    """Read a shape's horizontal align (algn) and vertical anchor."""
+    txbody = sp.find(_q(_P, "txBody"))
+    if txbody is None:
+        return None, None
+    anchor = None
+    bodypr = txbody.find(_q(_A, "bodyPr"))
+    if bodypr is not None:
+        anchor = bodypr.get("anchor")
+    algn = None
+    para = txbody.find(_q(_A, "p"))
+    if para is not None:
+        ppr = para.find(_q(_A, "pPr"))
+        if ppr is not None:
+            algn = ppr.get("algn")
+    if algn is None:
+        lvl1 = txbody.find(_q(_A, "lstStyle") + "/" + _q(_A, "lvl1pPr"))
+        if lvl1 is not None:
+            algn = lvl1.get("algn")
+    return algn, anchor
+
+
+def _ph_info_map(zf, part):
+    """Map a layout/master's placeholders: {(type, idx): (rect, algn, anchor)}."""
+    out = {}
+    root = mastersimport._zip_xml(zf, part) if part else None
+    if root is None:
+        return out
     tree = root.find(".//" + _q(_P, "spTree"))
     if tree is None:
-        return []
-    out = []
+        return out
     for sp in tree.findall(_q(_P, "sp")):
         ph = _ph_of(sp)
         if ph is None:
             continue
-        txbody = sp.find(_q(_P, "txBody"))
-        size_px, color = _run_format(txbody, scheme)
-        out.append({
-            "kind": ph.get("type", "body"),
-            "lines": _txbody_lines(txbody),
-            "size_px": size_px,
-            "color": color,
-        })
+        xf = _sp_xfrm(sp)
+        algn, anchor = _algn_anchor(sp)
+        out[(_norm_type(ph.get("type", "body")), ph.get("idx"))] = (xf, algn, anchor)
     return out
 
 
-def _classify(phs):
-    title = subtitle = None
-    bodies = []
-    for ph in phs:
-        kind = ph["kind"]
-        if kind in ("ctrTitle", "title"):
-            title = ph
-        elif kind == "subTitle":
-            subtitle = ph
-        elif kind in ("ftr", "sldNum", "dt"):
-            continue
-        elif ph["lines"]:
-            bodies.append(ph)
-    return title, subtitle, bodies
+def _match_info(info_map, t, idx):
+    if (t, idx) in info_map:
+        return info_map[(t, idx)]
+    for (gt, gidx), info in info_map.items():
+        if idx is not None and gidx == idx:
+            return info
+    for (gt, gidx), info in info_map.items():
+        if gt == t:
+            return info
+    return None
 
 
-def _choose_layout(title, subtitle, bodies):
-    if subtitle and not bodies:
-        return C.LayoutKey.TITLE
-    if len(bodies) >= 2:
-        return C.LayoutKey.TWO_CONTENT
-    if bodies or title:
-        return C.LayoutKey.TITLE_CONTENT
-    return C.LayoutKey.BLANK
+def _resolve_ph(slide_sp, layout_map, master_map, w, h, scale):
+    """Return (geom_pageunits, inherited_algn, inherited_anchor) for a shape.
+
+    Geometry inherits slide -> layout -> master: layout placeholders frequently
+    omit ``<a:xfrm>`` and inherit it from the master, so we walk both maps and
+    take the first non-empty xfrm / alignment.
+    """
+    ph = _ph_of(slide_sp)
+    t = _norm_type(ph.get("type", "body")) if ph is not None else "body"
+    idx = ph.get("idx") if ph is not None else None
+    l_info = _match_info(layout_map, t, idx)
+    m_info = _match_info(master_map, t, idx)
+
+    inh_algn = (l_info and l_info[1]) or (m_info and m_info[1]) or None
+    inh_anchor = (l_info and l_info[2]) or (m_info and m_info[2]) or None
+
+    xf = _sp_xfrm(slide_sp)
+    if xf is None and l_info is not None:
+        xf = l_info[0]
+    if xf is None and m_info is not None:
+        xf = m_info[0]
+    if xf is None:
+        ptype = ph.get("type") if ph is not None else None
+        rect = _DEFAULT_RECT.get(ptype or "body", _DEFAULT_RECT["body"])
+        return S.frac_rect((0, 0, w, h), rect), inh_algn, inh_anchor
+    x, y, cx, cy = xf
+    return (x * scale, y * scale, cx * scale, cy * scale), inh_algn, inh_anchor
 
 
-def _format_text(text_el, family, size_px, color):
-    from . import template
-    if family:
-        text_el.style["font-family"] = family
-    if size_px:
-        template._set_text_size(text_el, size_px)
-    if color:
-        text_el.style["fill"] = color
+# ---------------------------------------------------------------------------
+# Faithful per-slide content (document order, real geometry)
+# ---------------------------------------------------------------------------
+def _render_text(slide_sp, geom, scheme, family, default_color,
+                 inh_algn=None, inh_anchor=None):
+    txbody = slide_sp.find(_q(_P, "txBody"))
+    lines = _txbody_lines(txbody)
+    if not lines:
+        return None
+    x, y, w, h = geom
+    ph = _ph_of(slide_sp)
+    ptype = ph.get("type", "body") if ph is not None else None
+
+    size_px, color, bold = _run_format(txbody, scheme)
+    fs = size_px or _DEFAULT_SIZE.get(ptype, 24)
+
+    own_algn, own_anchor = _algn_anchor(slide_sp)
+    algn = own_algn or inh_algn
+    anchor = {"ctr": "middle", "r": "end"}.get(algn, "start")
+    tx = x + (w / 2 if anchor == "middle" else (w if anchor == "end" else 0))
+
+    bullets = ph is not None and ptype in ("body", "obj")
+    line_h = fs * 1.2
+    total = line_h * len(lines)
+    # Vertical anchor from bodyPr (t / ctr / b), inherited if not on the slide.
+    vanchor = own_anchor or inh_anchor
+    if vanchor == "ctr":
+        ty = y + max(0, (h - total) / 2) + fs
+    elif vanchor == "b":
+        ty = y + max(0, h - total) + fs
+    else:
+        ty = y + fs
+
+    text = S.make_text(tx, ty, lines, fs, anchor=anchor,
+                       fill=color or default_color, family=family,
+                       bullets=bullets)
+    if bold:
+        text.style["font-weight"] = "bold"
+    return text
 
 
-def _populate(slide, title, subtitle, bodies, defn):
-    """Fill placeholders with text, honouring per-run size / colour."""
-    from . import placeholders as Ph
+def _render_slide(zf, slide_part, layout_part, master_part, scale, scheme,
+                  family, default_color, w, h):
+    """Return ordered native elements for a slide's spTree, preserving z-order."""
+    root = mastersimport._zip_xml(zf, slide_part)
+    if root is None:
+        return [], 0, 0
+    tree = root.find(".//" + _q(_P, "spTree"))
+    if tree is None:
+        return [], 0, 0
 
-    family = defn.get("font_family")
-    title_sz = defn.get("title_font_size")
-    body_sz = defn.get("body_font_size")
-    title_clr = defn.get("title_color")
-    text_clr = defn.get("text_color")
+    layout_map = _ph_info_map(zf, layout_part)
+    master_map = _ph_info_map(zf, master_part)
 
-    def put(ph_id, ph, size_default, color_default):
-        if ph is None or not ph["lines"]:
-            return
-        group = slide.placeholder(ph_id)
-        if group is None:
-            return
-        Ph.set_placeholder_text(group, ph["lines"], bullets=ph_id != "title"
-                                and ph_id != "subtitle")
-        text = Ph.placeholder_text_el(group)
-        _format_text(text, family, ph["size_px"] or size_default,
-                     ph["color"] or color_default)
+    def resolve(el):
+        return mastersimport._resolve_color(el, scheme)
 
-    put("title", title, title_sz, title_clr)
-    sub_default = round(title_sz * 0.5) if title_sz else None
-    put("subtitle", subtitle, sub_default, text_clr)
-    if slide.layout == C.LayoutKey.TWO_CONTENT:
-        for ph_id, ph in zip(("content-left", "content-right"), bodies):
-            put(ph_id, ph, body_sz, text_clr)
-    elif bodies:
-        # Merge multiple body blocks into the single body placeholder.
-        merged = {"lines": [], "size_px": bodies[0]["size_px"],
-                  "color": bodies[0]["color"]}
-        for b in bodies:
-            merged["lines"].extend(b["lines"])
-        put("body", merged, body_sz, text_clr)
+    def shape_of(child):
+        return ooxml_shapes.element_for(
+            zf, slide_part, child, (0.0, 0.0, scale), resolve,
+            mastersimport._rel_target)
+
+    out = []
+    texts = shapes = 0
+    for child in tree:
+        tag = _localname(child)
+        if tag == "sp":
+            ph = _ph_of(child)
+            ptype = ph.get("type") if ph is not None else None
+            if ptype in _FIELD_PH:
+                continue  # footer / number / date -> our own fields
+            txbody = child.find(_q(_P, "txBody"))
+            has_text = txbody is not None and _txbody_lines(txbody)
+            # A non-placeholder shape may have BOTH a fill/outline and a text
+            # label -- draw the shape first, then its text on top. Placeholders
+            # carry no fill, so for them we render only the text.
+            if ph is None:
+                el = shape_of(child)
+                if el is not None:
+                    out.append(el)
+                    shapes += 1
+            if has_text:
+                geom, algn, anchor = _resolve_ph(
+                    child, layout_map, master_map, w, h, scale)
+                el = _render_text(child, geom, scheme, family, default_color,
+                                  algn, anchor)
+                if el is not None:
+                    out.append(el)
+                    texts += 1
+            elif ph is not None:
+                el = shape_of(child)
+                if el is not None:
+                    out.append(el)
+                    shapes += 1
+        elif tag in ("pic", "grpSp", "cxnSp"):
+            el = shape_of(child)
+            if el is not None:
+                out.append(el)
+                shapes += 1
+    return out, texts, shapes
 
 
 # ---------------------------------------------------------------------------
@@ -258,7 +373,6 @@ def _full_image(w, h, data, ext):
 
 
 def _pbg_element(zf, part, scheme, theme_root, w, h):
-    """Return a full-slide <image>/<rect> for a part's <p:bg>, or None."""
     if not part:
         return None
     bg = mastersimport._extract_bg(zf, part, scheme, theme_root)
@@ -273,21 +387,14 @@ def _pbg_element(zf, part, scheme, theme_root, w, h):
 
 def _background_group(zf, slide_part, layout_part, master_part,
                       scale, scheme, theme_root, w, h):
-    """Composite the slide's effective background into a managed-free <g>.
-
-    Order (back to front): master/layout/slide <p:bg> fill or picture, then the
-    master's and layout's decorative shapes / pictures from their spTree.
-    """
     def resolve(el):
         return mastersimport._resolve_color(el, scheme)
 
     group = ET.Element(_q(_SVG, "g"))
-
     for part in (master_part, layout_part, slide_part):
         el = _pbg_element(zf, part, scheme, theme_root, w, h)
         if el is not None:
             group.append(el)
-
     for part in (master_part, layout_part):
         if not part:
             continue
@@ -296,47 +403,11 @@ def _background_group(zf, slide_part, layout_part, master_part,
         if shapes is not None:
             for child in shapes:
                 group.append(child)
-
     if len(group) == 0:
         return None
     S.set_pp(group, C.A_PH_ROLE, C.PhRole.BACKGROUND)
     S.set_pp(group, "imported", "true")
     return group
-
-
-# ---------------------------------------------------------------------------
-# Free text boxes (non-placeholder) -> native SVG text
-# ---------------------------------------------------------------------------
-def _text_boxes(zf, part, scale, scheme, default_color, family):
-    """Translate non-placeholder text boxes to inkex text elements."""
-    root = mastersimport._zip_xml(zf, part)
-    if root is None:
-        return []
-    tree = root.find(".//" + _q(_P, "spTree"))
-    if tree is None:
-        return []
-    out = []
-    for sp in tree.findall(_q(_P, "sp")):
-        if _ph_of(sp) is not None:
-            continue  # placeholders already mapped to layout text
-        txbody = sp.find(_q(_P, "txBody"))
-        lines = _txbody_lines(txbody)
-        if not lines:
-            continue
-        xfrm = sp.find(_q(_P, "spPr") + "/" + _q(_A, "xfrm"))
-        if xfrm is None:
-            continue
-        off = xfrm.find(_q(_A, "off"))
-        if off is None:
-            continue
-        x = _num(off, "x") * scale
-        y = _num(off, "y") * scale
-        size_px, color = _run_format(txbody, scheme)
-        font_px = max(8.0, size_px or 36)
-        text = S.make_text(x, y + font_px, lines, font_px,
-                           fill=color or default_color, family=family)
-        out.append(text)
-    return out
 
 
 # ---------------------------------------------------------------------------
@@ -395,9 +466,9 @@ def import_presentation(pres, path, replace=True, import_notes=True):
                 except (TypeError, ValueError):
                     cx_emu = None
 
-        # 1. A presentation document carrying the imported theme. The master
-        #    keeps the theme essentials (base colour, fonts, sizes) but NOT the
-        #    global bg picture/shapes -- those are resolved per slide below.
+        # 1. A presentation document carrying the imported theme essentials
+        #    (base colour, fonts) but not the global bg picture/shapes -- those
+        #    are resolved per slide below.
         if not pres.is_initialized():
             document.init_presentation(
                 pres,
@@ -432,38 +503,25 @@ def import_presentation(pres, path, replace=True, import_notes=True):
         family = defn.get("font_family", "sans-serif")
         text_color = defn.get("text_color", "#000000")
 
-        def resolve(el):
-            return mastersimport._resolve_color(el, scheme)
-
-        count = pics = boxes = noted = bgs = 0
+        count = objs = bgs = noted = 0
         for part in parts:
-            phs = _placeholders(zf, part, scheme)
-            if phs is None:
-                continue
-            title, subtitle, bodies = _classify(phs)
-            slide = pages.add_slide(pres, _choose_layout(title, subtitle, bodies))
-            _populate(slide, title, subtitle, bodies, defn)
-
-            # Effective background (slide -> layout -> master): the usual home of
-            # a branded template's background picture / colour bands.
+            # Slides are imported faithfully (blank layout, no injected
+            # placeholders) so original positions and stacking survive.
+            slide = pages.add_slide(pres, C.LayoutKey.BLANK)
             layout_part, master_part = _chain(zf, part)
+
             bg = _background_group(zf, part, layout_part, master_part,
                                    scale, scheme, theme_root, w, h)
             if bg is not None:
-                slide.layer.insert(1, bg)  # above the base colour, below content
+                slide.layer.insert(1, bg)  # above base colour, below content
                 bgs += 1
 
-            # Slide-level pictures / shapes (charts, photos, callouts).
-            shapes = ooxml_shapes.shapes_svg(
-                zf, part, scale, resolve, mastersimport._rel_target)
-            if shapes is not None:
-                S.set_pp(shapes, C.A_PH_ROLE, "imported")
-                slide.layer.append(shapes)
-                pics += len(shapes)
-
-            for tb in _text_boxes(zf, part, scale, scheme, text_color, family):
-                slide.layer.append(tb)
-                boxes += 1
+            els, texts, shapes = _render_slide(
+                zf, part, layout_part, master_part, scale, scheme,
+                family, text_color, w, h)
+            for el in els:  # appended in document order -> z-order preserved
+                slide.layer.append(el)
+            objs += texts + shapes
 
             if import_notes:
                 ntext = _notes_text(zf, part)
@@ -476,19 +534,17 @@ def import_presentation(pres, path, replace=True, import_notes=True):
             pages.add_slide(pres, C.LayoutKey.TITLE)
         pages.relayout_pages(pres)
 
-    return count, _summary(name, count, pics, boxes, noted, bgs, aspect, overrides)
+    return count, _summary(name, count, objs, bgs, noted, aspect, overrides)
 
 
-def _summary(name, count, pics, boxes, noted, bgs, aspect, overrides):
+def _summary(name, count, objs, bgs, noted, aspect, overrides):
     lines = ["Imported %d slide%s from %s." % (count, "" if count == 1 else "s", name)]
     if aspect:
         lines.append("   slide size: %s" % aspect)
     if bgs:
         lines.append("   slide backgrounds: %d" % bgs)
-    if pics:
-        lines.append("   pictures / shapes: %d" % pics)
-    if boxes:
-        lines.append("   text boxes: %d" % boxes)
+    if objs:
+        lines.append("   objects (text / pictures / shapes): %d" % objs)
     if noted:
         lines.append("   speaker notes on %d slide%s" % (noted, "" if noted == 1 else "s"))
     if overrides.get("font_family"):

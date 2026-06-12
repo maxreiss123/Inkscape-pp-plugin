@@ -51,6 +51,31 @@ def shapes_svg(zf, part_name, scale, resolve_color, rel_target, limit=600):
     return group if len(group) else None
 
 
+def element_for(zf, part_name, child, tf, resolve_color, rel_target):
+    """Translate a single spTree child (sp / cxnSp / pic / grpSp) to SVG.
+
+    Unlike :func:`shapes_svg` this does *not* skip placeholder shapes -- the
+    caller decides what to do with placeholders (the presentation importer
+    renders their text itself and uses this only for non-text shapes), so z-order
+    can be preserved by translating each child in document order. Returns the
+    element, or None for empty / unsupported children.
+    """
+    tag = _localname(child)
+    if tag in ("sp", "cxnSp"):
+        return _shape(child, tf, resolve_color)
+    if tag == "pic":
+        return _picture(zf, part_name, child, tf, rel_target)
+    if tag == "grpSp":
+        ntf = _group_tf(child, tf)
+        if ntf is None:
+            return None
+        group = ET.Element(_q(SVG, "g"))
+        state = {"count": 0, "limit": 600}
+        _walk(zf, part_name, child, ntf, group, resolve_color, rel_target, state)
+        return group if len(group) else None
+    return None
+
+
 def _walk(zf, part_name, node, tf, out, resolve_color, rel_target, state):
     for child in node:
         if state["count"] >= state["limit"]:
