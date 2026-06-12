@@ -50,7 +50,8 @@ class EditMaster(inkex.EffectExtension):
 
         master.definition = defn
         if self.options.apply_now:
-            template.apply_to_all(pres, defn)
+            # Restyle so font/size/colour edits are visible on existing slides.
+            template.apply_to_all(pres, defn, restyle=True)
 
 
 if __name__ == "__main__":

@@ -49,9 +49,12 @@ All commands live under **Extensions → Presentation**.
   (stripped from the PDF and interactive exports); toggle them with *Add
   Animation → Show / Hide build-order badges*. Use *Add Animation → Remove* to
   clear an object's animation.
-- **Import a master** — *Import Master* reads a PowerPoint `.pptx` or
-  LibreOffice `.odp` file and applies its theme essentials (slide size/aspect,
-  background, accent colour, body font). Placeholder geometry and images are not
+- **Import a master** — *Import Master* reads a PowerPoint presentation or
+  template (`.pptx` / `.potx`) or a LibreOffice file (`.odp` / `.otp`) and
+  applies its theme: slide size/aspect, the slide master's background, accent,
+  fonts, and title/body sizes & colours. Existing slides are restyled (content
+  preserved) so the import is immediately visible, and a summary dialog lists
+  everything that was imported. Placeholder geometry and images are not
   imported.
 - **Generate deck from outline** — *Generate Deck from Outline* turns a Markdown
   outline into slides: `# Title` → a title slide, `## Heading` → a content slide,
