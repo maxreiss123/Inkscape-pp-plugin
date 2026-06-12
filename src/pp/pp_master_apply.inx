@@ -10,7 +10,9 @@
   <effect needs-live-preview="false">
     <object-type>all</object-type>
     <effects-menu>
-      <submenu name="Presentation"/>
+      <submenu name="Presentation">
+        <submenu name="Slide Master"/>
+      </submenu>
     </effects-menu>
   </effect>
   <script>

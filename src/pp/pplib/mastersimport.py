@@ -329,11 +329,19 @@ def _import_pptx(path):
                 def _resolve(el):
                     return _resolve_color(el, scheme)
 
-                shapes = ooxml_shapes.shapes_svg(
-                    zf, master_name, scale, _resolve, _rel_target)
-                if shapes is not None:
-                    import lxml.etree as _ET
-                    overrides["bg_shapes"] = _ET.tostring(shapes).decode("utf-8")
+                # Decoration / logos live on the master, but some templates put
+                # them on the layouts -- fall back to the first layout that has
+                # any shapes.
+                shape_parts = [master_name] + sorted(
+                    n for n in names
+                    if n.startswith("ppt/slideLayouts/") and n.endswith(".xml"))
+                for part in shape_parts:
+                    shapes = ooxml_shapes.shapes_svg(
+                        zf, part, scale, _resolve, _rel_target)
+                    if shapes is not None:
+                        import lxml.etree as _ET
+                        overrides["bg_shapes"] = _ET.tostring(shapes).decode("utf-8")
+                        break
 
     if "title_color" not in overrides and scheme.get("dk2"):
         overrides["title_color"] = scheme["dk2"]
