@@ -66,6 +66,22 @@ def _bg_rect(bbox, color):
     return rect
 
 
+def _bg_image(bbox, href):
+    """Full-slide background picture imported from a template's master/layout."""
+    from inkex import Image
+    x, y, w, h = bbox
+    img = Image()
+    img.set("x", str(x))
+    img.set("y", str(y))
+    img.set("width", str(w))
+    img.set("height", str(h))
+    img.set("preserveAspectRatio", "xMidYMid slice")
+    img.set("{http://www.w3.org/1999/xlink}href", href)
+    S.set_pp(img, C.A_PH_ROLE, C.PhRole.BACKGROUND)
+    S.set_pp(img, C.A_MANAGED, "true")
+    return img
+
+
 def _logo(bbox, defn):
     from inkex import Image
     href = defn.get("logo_href")
@@ -162,8 +178,11 @@ def apply_master(pres, slide, definition, overwrite_user=False, restyle=False):
     _clear_managed(layer)
 
     # Build managed elements bottom-up, then insert them at the front (index 0+)
-    # so they sit beneath user content.
+    # so they sit beneath user content. A template background image (if imported)
+    # covers the whole slide; otherwise a solid colour rectangle.
     managed = [_bg_rect(bbox, definition.get("bg_color", "#ffffff"))]
+    if definition.get("bg_image"):
+        managed.append(_bg_image(bbox, definition["bg_image"]))
     logo = _logo(bbox, definition)
     if logo is not None:
         managed.append(logo)
