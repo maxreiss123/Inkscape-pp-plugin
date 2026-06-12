@@ -70,15 +70,18 @@ All commands live under **Extensions → Presentation**.
   clear an object's animation.
 - **Import a whole PowerPoint deck** — *Import PPTX Presentation*
   (**Extensions → Presentation**) reads an entire `.pptx` / `.pptm` / `.ppsx`
-  file and rebuilds **every slide** as a native slide: the title / subtitle /
-  bullet text (mapped onto editable placeholders, keeping each run's **font size
-  and colour**), free-floating text boxes, pictures and shapes, and the
-  **speaker notes**. Each slide's **effective background is resolved through the
-  slide → layout → master chain**, so a branded template's background pictures
-  and colour bands (which usually live on the layout/master, not the slide) come
-  across behind the right slides. Choose *Replace the current slides* or
+  file and rebuilds **every slide faithfully**. Each slide's shapes are
+  translated **in document order**, so the original **stacking / z-order is
+  preserved**, and each object is placed at its **real position and size** —
+  including placeholders whose geometry, alignment and vertical anchoring are
+  **inherited through the slide → layout → master chain** (a slide's own
+  geometry is usually empty). Text keeps each run's **font size, colour and
+  bold**; pictures, auto-shapes (with their fill *and* their text label) and
+  groups become native SVG; the slide's **effective background** (pictures and
+  colour bands, which usually live on the layout/master) is composited behind
+  it; and **speaker notes** come across. Choose *Replace the current slides* or
   *append*, and toggle note import. A summary lists how many slides, backgrounds,
-  pictures, text boxes and notes were imported.
+  objects and notes were imported.
 - **Import a master** — *Import Master* (under **Slide Master**) reads a
   PowerPoint presentation or template (`.pptx` / `.potx`) or a LibreOffice file
   (`.odp` / `.otp`) and applies just its **theme**: slide size/aspect, the slide
